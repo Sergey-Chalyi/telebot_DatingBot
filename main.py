@@ -211,7 +211,7 @@ def bot_start(message):
         message.chat.id,
         get_message(MESS_SET_LANG),
         parse_mode='html',
-        reply_markup=add_underline_keyboard(but_names=["🇺🇦 Ukrainian", '🇬🇧 English', ], row_width=4)
+        reply_markup=add_underline_keyboard(but_names=["🇺🇦 Ukrainian", '🇬🇧 English', '🇷🇺 Russian'], row_width=4)
     )
 
     bot.register_next_step_handler(message, choose_lang)
@@ -224,12 +224,27 @@ def choose_lang(message):
         user_lang = 1
     elif message.text == "🇬🇧 English":
         user_lang = 0
+    elif message.text == "🇷🇺 Russian":
+        message = bot.send_message(
+            message.chat.id,
+            "🖕",
+            parse_mode="html",
+            reply_markup=add_underline_keyboard(but_names=["🇺🇦 Ukrainian", '🇬🇧 English'], row_width=3)
+        )
+        message = bot.send_message(
+            message.chat.id,
+            get_message(MESS_EX_SET_LANG_INCORRECT_LANG),
+            parse_mode="html",
+            reply_markup=add_underline_keyboard(but_names=["🇺🇦 Ukrainian", '🇬🇧 English'], row_width=3)
+        )
+        bot.register_next_step_handler(message, choose_lang)
+        return
     else:
         message = bot.send_message(
             message.chat.id,
             get_message(MESS_EX_SET_LANG_INCORRECT_LANG),
             parse_mode="html",
-            reply_markup=add_underline_keyboard(but_names=["🇺🇦 Ukrainian", '🇬🇧 English', ], row_width=4)
+            reply_markup=add_underline_keyboard(but_names=["🇺🇦 Ukrainian", '🇬🇧 English', '🇷🇺 Russian'], row_width=4)
         )
         bot.register_next_step_handler(message, choose_lang)
         return
@@ -246,36 +261,9 @@ def choose_lang(message):
     return
 
 
-
-
 @bot.callback_query_handler(func=lambda callback: True)
 def callback_message(callback):
     match callback.data:
-        case "create_blank":
-            bot.send_message(
-                callback.message.chat.id,
-                get_message(MESS_ENTER_GENDER),
-                reply_markup=add_underline_keyboard(
-                    but_names=[get_message(BUT_FEMALE), get_message(BUT_MALE)],
-                    row_width=2
-                )
-            )
-            bot.register_next_step_handler(callback.message, add_gender)
-            return
-
-        case "set_language":
-            bot.send_message(
-                callback.message.chat.id,
-                get_message(MESS_ENTER_GENDER),
-                reply_markup=add_underline_keyboard(
-                    but_names=[get_message(BUT_FEMALE), get_message(BUT_MALE)],
-                    row_width=2
-                )
-            )
-            bot.register_next_step_handler(callback.message, add_gender)
-            return
-            return
-
         case "choose_gender_to_find":
             bot.send_message(callback.message.chat.id, "Which gender do you want to search (m/f)?")
             bot.register_next_step_handler(callback.message, choose_gender_to_find)
@@ -292,7 +280,8 @@ def add_gender(message):
 
         message = bot.send_message(
             message.chat.id,
-            get_message(MESS_ENTER_NAME)
+            get_message(MESS_ENTER_NAME),
+            reply_markup=telebot.types.ReplyKeyboardRemove()
         )
         bot.register_next_step_handler(message, add_name)
     else:
