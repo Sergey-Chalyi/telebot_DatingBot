@@ -44,6 +44,9 @@ MESS_EX_ENTER_PHOTO_CONT_QR = "MESS_EX_ENTER_PHOTO_CONT_QR"
 MESS_SET_LANG = "BUT_SET_LANG"
 MESS_EX_SET_LANG_INCORRECT_LANG = "MESS_EX_SET_LANG_INCORRECT_LANG"
 
+MESS_EX_EXPECT_TEXT = "MESS_EX_EXPECT_TEXT"
+MESS_EX_EXPECT_PHOTO = "MESS_EX_EXPECT_PHOTO"
+
 BUT_CREATE_NEW_BLANK = "BUT_CREATE_NEW_BLANK"
 BUT_MALE = "BUT_MALE"
 BUT_FEMALE = "BUT_FEMALE"
@@ -146,6 +149,16 @@ messages = {
         "<b>Ви ввели неправильну мову ❌</b>\nВведіть вашу мову: 🌎"
     ),
 
+    MESS_EX_EXPECT_TEXT : (
+        "<b>You  have typed not a text ❌</b>\nEnter text: 🌎",
+        "<b>Ви ввели не текст ❌</b>\nВведіть текст: 🌎"
+    ),
+
+    MESS_EX_EXPECT_PHOTO : (
+        "<b>You  have typed not a photo ❌</b>\nEnter yout photo: 📸",
+        "<b>Ви ввели не фото ❌</b>\nВведіть ваше фото: 📸"
+    ),
+
     BUT_CREATE_NEW_BLANK: (
         "Create new blank! 🆕",
         "Створити нову анкету! 🆕"
@@ -161,39 +174,6 @@ messages = {
 }
 
 
-def get_message(message):
-    return messages[message][user_lang]
-
-
-def add_inline_keyboard(but_names: list, row_width: int):
-    """Create INLINE keyboard"""
-
-    markup = telebot.types.InlineKeyboardMarkup(row_width=row_width)
-
-    buttons = []
-    for but_name in but_names:
-        buttons.append(telebot.types.InlineKeyboardButton(but_name, callback_data=get_callback_name(but_name)))
-    markup.add(*buttons)
-
-    return markup
-
-
-def add_underline_keyboard(but_names: list, row_width: int):
-    """Create UNDERLINE keyboard with one line of buttons"""
-
-    markup = telebot.types.ReplyKeyboardMarkup(row_width=row_width)
-
-    buttons = []
-    for but_name in but_names:
-        buttons.append(telebot.types.KeyboardButton(but_name))
-    markup.add(*buttons)
-
-    return markup
-
-
-def get_callback_name(but_name):
-    if but_name == get_message(BUT_CREATE_NEW_BLANK):
-        return "create_blank"
 
 
 @bot.message_handler(commands=['start'])
@@ -218,6 +198,17 @@ def bot_start(message):
 
 
 def choose_lang(message):
+    if not message.content_type == "text":
+        message = bot.send_message(
+            message.chat.id,
+            get_message(MESS_EX_EXPECT_TEXT),
+            parse_mode="html",
+            reply_markup=add_underline_keyboard(but_names=["🇺🇦 Ukrainian", '🇬🇧 English', '🇷🇺 Russian'], row_width=4)
+        )
+        bot.register_next_step_handler(message, choose_lang)
+        return
+
+
     global user_lang
 
     if message.text == "🇺🇦 Ukrainian":
@@ -229,7 +220,6 @@ def choose_lang(message):
             message.chat.id,
             "🖕",
             parse_mode="html",
-            reply_markup=add_underline_keyboard(but_names=["🇺🇦 Ukrainian", '🇬🇧 English'], row_width=3)
         )
         message = bot.send_message(
             message.chat.id,
@@ -261,19 +251,16 @@ def choose_lang(message):
     return
 
 
-@bot.callback_query_handler(func=lambda callback: True)
-def callback_message(callback):
-    match callback.data:
-        case "choose_gender_to_find":
-            bot.send_message(callback.message.chat.id, "Which gender do you want to search (m/f)?")
-            bot.register_next_step_handler(callback.message, choose_gender_to_find)
-            return
-
-        case "start_searching":
-            bot.register_next_step_handler(callback.message, search_blanks)
-            return
-
 def add_gender(message):
+    if not message.content_type == "text":
+        message = bot.send_message(
+            message.chat.id,
+            get_message(MESS_EX_EXPECT_TEXT),
+            parse_mode="html"
+        )
+        bot.register_next_step_handler(message, add_gender)
+        return
+
     if message.text == get_message(BUT_MALE) or message.text == get_message(BUT_FEMALE):
         db_req.add_gender_to_blank(GENDER_MALE if message.text == BUT_MALE else GENDER_FEMALE)
         print("Gender has already added!")
@@ -297,6 +284,15 @@ def add_gender(message):
         bot.register_next_step_handler(message, add_gender)
 
 def add_name(message):
+    if not message.content_type == "text":
+        message = bot.send_message(
+            message.chat.id,
+            get_message(MESS_EX_EXPECT_TEXT),
+            parse_mode="html"
+        )
+        bot.register_next_step_handler(message, add_name)
+        return
+
     name = message.text.strip().capitalize()
 
     if not name.isalpha() or not db_req.does_name_exists(name):
@@ -316,6 +312,15 @@ def add_name(message):
         return
 
 def add_age(message):
+    if not message.content_type == "text":
+        message = bot.send_message(
+            message.chat.id,
+            get_message(MESS_EX_EXPECT_TEXT),
+            parse_mode="html"
+        )
+        bot.register_next_step_handler(message, add_age)
+        return
+
     try:
         age = int(message.text.strip())
         if age <= 10 or age >= 100:
@@ -344,6 +349,15 @@ def add_age(message):
     bot.register_next_step_handler(message, add_city)
 
 def add_city(message):
+    if not message.content_type == "text":
+        message = bot.send_message(
+            message.chat.id,
+            get_message(MESS_EX_EXPECT_TEXT),
+            parse_mode="html"
+        )
+        bot.register_next_step_handler(message, add_city)
+        return
+
     city = message.text.strip().capitalize()
     if not city.isalpha() or not db_req.does_city_exists(city):
         message = bot.send_message(
@@ -361,6 +375,15 @@ def add_city(message):
     bot.register_next_step_handler(message, add_description)
 
 def add_description(message):
+    if not message.content_type == "text":
+        message = bot.send_message(
+            message.chat.id,
+            get_message(MESS_EX_EXPECT_TEXT),
+            parse_mode="html"
+        )
+        bot.register_next_step_handler(message, add_description)
+        return
+
     description = message.text.strip()
     if len(description) < 20 or len(description) > 300:
         message = bot.send_message(
@@ -397,6 +420,15 @@ def add_description(message):
     bot.register_next_step_handler(message, add_photo)
 
 def add_photo(message):
+    if not message.content_type == "photo":
+        message = bot.send_message(
+            message.chat.id,
+            get_message(MESS_EX_EXPECT_PHOTO),
+            parse_mode="html"
+        )
+        bot.register_next_step_handler(message, add_photo)
+        return
+
     if message.document:
         file_id = message.document.file_id
     elif message.photo:
@@ -480,20 +512,54 @@ def choose_max_age_to_find(message):
 def search_blanks(message):
     pass
 
+
+@bot.callback_query_handler(func=lambda callback: True)
+def callback_message(callback):
+    match callback.data:
+        case "choose_gender_to_find":
+            bot.send_message(callback.message.chat.id, "Which gender do you want to search (m/f)?")
+            bot.register_next_step_handler(callback.message, choose_gender_to_find)
+            return
+
+        case "start_searching":
+            bot.register_next_step_handler(callback.message, search_blanks)
+            return
+
+
+def get_message(message):
+    return messages[message][user_lang]
+
+
+def get_callback_name(but_name):
+    if but_name == get_message(BUT_CREATE_NEW_BLANK):
+        return "create_blank"
+
+
+def add_inline_keyboard(but_names: list, row_width: int):
+    """Create INLINE keyboard"""
+
+    markup = telebot.types.InlineKeyboardMarkup(row_width=row_width)
+
+    buttons = []
+    for but_name in but_names:
+        buttons.append(telebot.types.InlineKeyboardButton(but_name, callback_data=get_callback_name(but_name)))
+    markup.add(*buttons)
+
+    return markup
+
+
+def add_underline_keyboard(but_names: list, row_width: int):
+    """Create UNDERLINE keyboard with one line of buttons"""
+
+    markup = telebot.types.ReplyKeyboardMarkup(row_width=row_width)
+
+    buttons = []
+    for but_name in but_names:
+        buttons.append(telebot.types.KeyboardButton(but_name))
+    markup.add(*buttons)
+
+    return markup
+
 bot.infinity_polling()
 
-def throw_error():
-    pass
-
-def create_inline_keyboard(buttons):
-    markup = telebot.types.InlineKeyboardMarkup()
-    for text, callback_data in buttons:
-        markup.add(telebot.types.InlineKeyboardButton(text, callback_data=callback_data))
-    return markup
-
-def create_reply_keyboard(buttons):
-    markup = telebot.types.ReplyKeyboardMarkup()
-    for text, callback_data in buttons:
-        markup.add(telebot.types.KeyboardButton(text))
-    return markup
 
