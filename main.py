@@ -2,6 +2,7 @@ import io
 import re
 from io import BytesIO
 from PIL import Image
+from PIL.ImageChops import constant
 from pyzbar.pyzbar import decode
 
 import telebot
@@ -9,32 +10,83 @@ import db_req
 
 
 BOT_TOKEN = "7197713140:AAEHSyZLX3Q-CGU0GzK2r2Q7Z45rmSAHWd8"
-
 bot = telebot.TeleBot(BOT_TOKEN)
 
-WELCOME_MESSAGE = (
+MESS_WELCOME = (
     "<b>Hello👋</b>\n"
     "This bot is to help you with dating💕\n"
     "Let's make your blank!"
 )
 
-GENDER_PROMT = "Enter your gender:"
-NAME_PROMT = "Enter your name:"
+MESS_ENTER_GENDER = "Enter your gender:"
+MESS_EX_ENTER_GENDER = "<b>You have typed the wrong gender!</b>\nEnter your gender:"
 
-def throw_error():
-    pass
+MESS_ENTER_NAME = "Enter your name:"
+MESS_EX_ENTER_NAME_CONT_NUMS = "<b>The name can`t contain figures!</b>\nEnter your name:"
+MESS_EX_ENTER_NAME_NOT_IN_DB = "<b>Such name doesn't exists!</b>\nEnter your name:"
 
-def create_inline_keyboard(buttons):
-    markup = telebot.types.InlineKeyboardMarkup()
-    for text, callback_data in buttons:
-        markup.add(telebot.types.InlineKeyboardButton(text, callback_data=callback_data))
+MESS_ENTER_AGE = "Enter your age:"
+MESS_EX_ENTER_AGE_LITTLE = "<b>Too little age!</b>\nEnter your age:"
+MESS_EX_ENTER_AGE_LARGE = "<b>Too large age!</b>\nEnter your age:"
+MESS_EX_ENTER_AGE_NOT_NUM = "<b>Not a number!</b>\nEnter your age:"
+
+MESS_ENTER_CITY = "Enter your city:"
+MESS_EX_ENTER_CITY_CONT_NUM = "<b>The city can't contain figures!</b>\nEnter your city:"
+MESS_EX_ENTER_CITY_NOT_INT_DB = "<b>Such city doesn't exist!</b>\nEnter your city:"
+
+MESS_ENTER_DESCR = "Enter your description"
+MESS_EX_ENTER_DESCR_TOO_LITTLE = "<b>The description is too little!</b>\nEnter your description:"
+MESS_EX_ENTER_DESCR_TOO_LARGE = "<b>The description is too large!</b>\nEnter your description:"
+MESS_EX_ENTER_DESCR_CONT_LINK = "<b>The description can't contain any links!</b>\nEnter your description:"
+
+MESS_ENTER_PHOTO = "Enter your photo:"
+MESS_EX_ENTER_PHOTO_CONT_QR = "<b>Photo can't contain qr codes!</b> Enter your photo:"
+
+
+BUT_CREATE_NEW_BLANK = "Create new blank!"
+
+BUT_MALE = "Male 🧑🏻"
+BUT_FEMALE = "Female 👩🏻"
+
+DB_COL_GENDER = 'gender'
+DB_COL_NAME = 'name'
+DB_COL_AGE = 'age'
+DB_COL_CITY = 'city'
+DB_COL_DESC = 'description'
+
+GENDER_MALE = 'm'
+GENDER_FEMALE = 'f'
+
+def add_inline_keyboard(but_names: list, row_width: int):
+    """Create INLINE keyboard"""
+
+    markup = telebot.types.InlineKeyboardMarkup(row_width=row_width)
+
+    buttons = []
+    for but_name in but_names:
+        buttons.append(telebot.types.InlineKeyboardButton(but_name, callback_data=get_callback_name(but_name)))
+    markup.add(*buttons)
+
     return markup
 
-def create_reply_keyboard(buttons):
-    markup = telebot.types.ReplyKeyboardMarkup()
-    for text, callback_data in buttons:
-        markup.add(telebot.types.KeyboardButton(text))
+
+def add_underline_keyboard(but_names: list, row_width: int):
+    """Create UNDERLINE keyboard with one line of buttons"""
+
+    markup = telebot.types.ReplyKeyboardMarkup(row_width=row_width)
+
+    buttons = []
+    for but_name in but_names:
+        buttons.append(telebot.types.KeyboardButton(but_name))
+    markup.add(*buttons)
+
     return markup
+
+
+def get_callback_name(but_name):
+    match but_name:
+        case BUT_CREATE_NEW_BLANK:
+            return "create_blank"
 
 @bot.message_handler(commands=['start'])
 def com_start(message):
@@ -43,56 +95,58 @@ def com_start(message):
         # add user to db and show inline buttons
         db_req.add_user_to_priv_db(message.from_user.id, message)
 
-    markup = telebot.types.InlineKeyboardMarkup()
-    markup.add(telebot.types.InlineKeyboardButton("Create new blank!", callback_data = "create_blank"))
-
     bot.send_message(message.chat.id,
-                     WELCOME_MESSAGE,
+                     MESS_WELCOME,
                      parse_mode='html',
-                     reply_markup=create_inline_keyboard([("Create new blank!", "add_gender")])
+                     reply_markup = add_inline_keyboard(but_names=[BUT_CREATE_NEW_BLANK], row_width=1)
                      )
 
 @bot.callback_query_handler(func=lambda callback: True)
 def callback_message(callback):
-    if callback.data == "add_gender":
-        markup = telebot.types.ReplyKeyboardMarkup(row_width=2)
-        but1 = telebot.types.KeyboardButton("Male 🧑🏻")
-        but2 = telebot.types.KeyboardButton("Female 👩🏻")
-        markup.add(but2, but1)
+    match callback.data:
+        case "create_blank":
+            bot.send_message(
+                callback.message.chat.id,
+                MESS_ENTER_GENDER,
+                reply_markup=add_underline_keyboard(
+                    but_names=[BUT_FEMALE, BUT_MALE],
+                    row_width=2
+                )
+            )
+            bot.register_next_step_handler(callback.message, add_gender)
+            return
 
-        bot.send_message(callback.message.chat.id, "Enter your gender:", reply_markup=markup)
-        bot.register_next_step_handler(callback.message, add_gender)
-    elif callback.data == "choose_gender_to_find":
-        bot.send_message(callback.message.chat.id, "Witch gender do you want to search (m/f)?")
-        bot.register_next_step_handler(callback.message, choose_gender_to_find)
-    elif callback.data == "start_searching":
-        bot.register_next_step_handler(callback.message, search_blanks)
+        case "choose_gender_to_find":
+            bot.send_message(callback.message.chat.id, "Witch gender do you want to search (m/f)?")
+            bot.register_next_step_handler(callback.message, choose_gender_to_find)
+            return
+
+        case "start_searching":
+            bot.register_next_step_handler(callback.message, search_blanks)
+            return
 
 
 def add_gender(message):
-    if message.text == "Male 🧑🏻":
-        gender = "m"
-        db_req.add_gender_to_blank("m")
+    if message.text == BUT_MALE or message.text == BUT_FEMALE:
+        db_req.add_gender_to_blank(GENDER_MALE if message.text == BUT_MALE else GENDER_FEMALE)
         print("Gender has already added!")
-        message = bot.send_message(message.chat.id,
-                                    "Enter your name:",
-                                    reply_markup=telebot.types.ReplyKeyboardRemove())
-        bot.register_next_step_handler(message, add_name)
-        # feature: add my nickname as a name
-    elif message.text == "Female 👩🏻":
-        db_req.add_gender_to_blank('f')
-        print("Gender has already added!")
-        message = bot.send_message(message.chat.id,
-                                   "Enter your name:",
-                                   reply_markup=telebot.types.ReplyKeyboardRemove())
+
+        message = bot.send_message(
+            message.chat.id,
+            MESS_ENTER_NAME,
+        )
         bot.register_next_step_handler(message, add_name)
         # feature: add my nickname as a name
     else:
-        markup = telebot.types.ReplyKeyboardMarkup(row_width=5)
-        but1 = telebot.types.KeyboardButton("Male 🧑🏻")
-        but2 = telebot.types.KeyboardButton("Female 👩🏻")
-        markup.add(but2, but1)
-        message = bot.send_message(message.chat.id, "<b>You have typed the wrong gender!</b>\nEnter your gender:", parse_mode = "html", reply_markup=markup)
+        message = bot.send_message(
+            message.chat.id,
+            MESS_EX_ENTER_GENDER,
+            parse_mode = "html",
+            reply_markup=add_underline_keyboard(
+                but_names=[BUT_FEMALE, BUT_MALE],
+                row_width=2
+            )
+        )
         bot.register_next_step_handler(message, add_gender)
 
 
@@ -101,14 +155,20 @@ def add_name(message):
     name = message.text.strip().capitalize()
 
     if not name.isalpha() or not db_req.does_name_exists(name):
-        message = bot.send_message(message.chat.id, "<b>You have typed an incorrect name!</b>\nEnter your name:", parse_mode="html")
+        message = bot.send_message(
+            message.chat.id,
+            MESS_EX_ENTER_NAME_CONT_NUMS if not name.isalpha() else MESS_EX_ENTER_NAME_NOT_IN_DB,
+            parse_mode="html"
+        )
         bot.register_next_step_handler(message, add_name)
         return
     else:
-        db_req.add_data_to_blank("name", name)
+        db_req.add_data_to_blank(DB_COL_NAME, name)
         print("Name has already added!")
-        message = bot.send_message(message.chat.id, "Enter your age:")
+
+        message = bot.send_message(message.chat.id, MESS_ENTER_AGE)
         bot.register_next_step_handler(message, add_age)
+        return
 
 
 def add_age(message):
@@ -116,62 +176,85 @@ def add_age(message):
         age = int(message.text.strip())
         if age <= 10 or age >= 100:
             raise Exception
-    except Exception:
-        message = bot.send_message(message.chat.id, "<b>You have typed an incorrect age!</b>\nEnter your age:",
-                                   parse_mode="html")
+    except ValueError as exception:
+        message = bot.send_message(
+            message.chat.id,
+            MESS_EX_ENTER_AGE_NOT_NUM,
+            parse_mode="html"
+        )
+        bot.register_next_step_handler(message, add_age)
+        return
+    except Exception as exception:
+        message = bot.send_message(
+            message.chat.id,
+            MESS_EX_ENTER_AGE_LITTLE if age <= 10 else MESS_EX_ENTER_AGE_LARGE,
+            parse_mode="html"
+        )
         bot.register_next_step_handler(message, add_age)
         return
 
-    db_req.add_data_to_blank("age", int(message.text))
+    db_req.add_data_to_blank(DB_COL_AGE, int(message.text))
     print("Age has already added!")
 
-    message = bot.send_message(message.chat.id, "Enter your city:")
+    message = bot.send_message(message.chat.id, MESS_ENTER_CITY)
     bot.register_next_step_handler(message, add_city)
 
 
 def add_city(message):
     city = message.text.strip().capitalize()
     if not city.isalpha() or not db_req.does_city_exists(city):
-        message = bot.send_message(message.chat.id, "<b>You have typed an incorrect cityname!</b>\nEnter your city:",
-                                   parse_mode="html")
+        message = bot.send_message(
+            message.chat.id,
+            MESS_EX_ENTER_CITY_CONT_NUM if not city.isalpha() else MESS_EX_ENTER_CITY_NOT_INT_DB,
+            parse_mode="html"
+        )
         bot.register_next_step_handler(message, add_city)
         return
 
-    db_req.add_data_to_blank("city", message.text)
+    db_req.add_data_to_blank(DB_COL_CITY, message.text)
     print("City has already added!")
 
     # for the next step
-    message = bot.send_message(message.chat.id, "Enter your description:")
+    message = bot.send_message(message.chat.id, MESS_ENTER_DESCR)
     bot.register_next_step_handler(message, add_description)
 
 def add_description(message):
     # checking
     description = message.text.strip()
-    if "http" in description or "www." in description:
-        message = bot.send_message(message.chat.id,
-                                   "<b>Your description contains links to other resources, It is forbade!!!</b>"
-                                   "\nEnter correct description:",
-                                   parse_mode="html")
+    if len(description) < 20 or len(description) > 300:
+        message = bot.send_message(
+            message.chat.id,
+            MESS_EX_ENTER_DESCR_TOO_LITTLE if len(description) < 20 else MESS_EX_ENTER_DESCR_TOO_LARGE,
+            parse_mode="html"
+        )
+        bot.register_next_step_handler(message, add_description)
+        return
+    elif "http" in description or "www." in description:
+        message = bot.send_message(
+            message.chat.id,
+            MESS_EX_ENTER_DESCR_CONT_LINK,
+            parse_mode="html"
+        )
         bot.register_next_step_handler(message, add_description)
         return
     elif re.search(r'\b\w+\.\w+\b', description):
         for tld in db_req.get_all_tlds():
-            tld = tld[0]
+            tld = tld[0] # get from tuple
             if tld in description:
-                message = bot.send_message(message.chat.id,
-                                           "<b>Your description contains links to other resources, It is forbade!!!</b>"
-                                           "\nEnter correct description:",
-                                           parse_mode="html")
+                message = bot.send_message(
+                    message.chat.id,
+                    MESS_EX_ENTER_DESCR_CONT_LINK,
+                    parse_mode="html"
+                )
                 bot.register_next_step_handler(message, add_description)
                 return
 
-    db_req.add_data_to_blank("description", message.text)
+    db_req.add_data_to_blank(DB_COL_DESC, message.text)
     print("Description has already added!")
+
     # for the next step
-    message = bot.send_message(message.chat.id, "Enter your photo:")
+    message = bot.send_message(message.chat.id, MESS_ENTER_PHOTO)
     bot.register_next_step_handler(message, add_photo)
-
-
 
 
 def add_photo(message):
@@ -276,3 +359,18 @@ def search_blanks(message):
     pass
 
 bot.infinity_polling()
+
+def throw_error():
+    pass
+
+def create_inline_keyboard(buttons):
+    markup = telebot.types.InlineKeyboardMarkup()
+    for text, callback_data in buttons:
+        markup.add(telebot.types.InlineKeyboardButton(text, callback_data=callback_data))
+    return markup
+
+def create_reply_keyboard(buttons):
+    markup = telebot.types.ReplyKeyboardMarkup()
+    for text, callback_data in buttons:
+        markup.add(telebot.types.KeyboardButton(text))
+    return markup
