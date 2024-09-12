@@ -57,6 +57,11 @@ DB_COL_NAME = 'name'
 DB_COL_AGE = 'age'
 DB_COL_CITY = 'city'
 DB_COL_DESC = 'description'
+DB_COL_PREF_GENDER = 'preferences_gender'
+DB_COL_PREF_MIN_AGE_TO_SEE = 'preferances_to_see_min_age'
+DB_COL_PREF_MAX_AGE_TO_SEE = 'preferances_to_see_max_age'
+DB_COL_PREF_MIN_AGE_OTHER_TO_SEE_ME = 'preferances_other_to_see_min_age'
+DB_COL_PREF_MAX_AGE_OTHER_TO_SEE_ME = 'preferances_other_to_see_max_age'
 
 
 GENDER_MALE = 'm'
@@ -430,19 +435,6 @@ def add_photo(message):
         return
 
     file_id = message.photo[-1].file_id
-    file_info = bot.get_file(file_id=file_id)
-    file_path = file_info.file_path
-    file = bot.download_file(file_path)
-
-    if does_photo_contains_qr(file) > 0:
-        message = bot.send_message(
-            message.chat.id,
-            get_message(MESS_EX_ENTER_PHOTO_CONT_QR),
-            parse_mode="html"
-        )
-        bot.register_next_step_handler(message, add_photo)
-        return
-
     db_req.add_data_to_blank("photo", file_id)
     print("Photo has already added!")
 
@@ -453,7 +445,7 @@ def get_all_user_information(message, tg_id):
     user_info = db_req.get_user_blank_info(tg_id)
     user_all_description = f"""**{user_info[1]}, {user_info[2]}, {user_info[3]}**\n\n{user_info[4]}"""
 
-    bot.send_message(message.chat.id, "Your blank is ready! Here it is!")
+    bot.send_message(message.chat.id, "Your blank is almost ready! Here it is!")
     bot.send_photo(
         message.chat.id,
         user_info[0],  # photo
@@ -462,33 +454,132 @@ def get_all_user_information(message, tg_id):
     )
     print("Blank has already added")
 
-    # markup = telebot.types.InlineKeyboardMarkup()
-    # markup.add(telebot.types.InlineKeyboardButton(get_message("Publish and start searching!"), callback_data="choose_gender_to_find"))
-    #
-    # bot.send_message(message.chat.id,
-    #                  get_message("Do you want to publish your blank and start searching?)"),
-    #                  reply_markup=markup)
+
+    message = bot.send_message(
+        message.chat.id,
+        "Let's set up searching settings!\nChoose gender to search:",
+        reply_markup=add_underline_keyboard(
+            but_names=[get_message(BUT_FEMALE), get_message(BUT_MALE)],
+            row_width=2
+        )
+    )
+    bot.register_next_step_handler(message, choose_gender_to_find)
+
+
 
 def choose_gender_to_find(message):
-    db_req.add_data_to_blank("preferences_gender", message.text)
-    print("Gender to search has already chosen!")
-    bot.send_message(message.chat.id, "Print min age of blanks which you want to see")
-    bot.register_next_step_handler(message, choose_min_age_to_find)
+    if not message.content_type == "text":
+        message = bot.send_message(
+            message.chat.id,
+            get_message(MESS_EX_EXPECT_TEXT),
+            parse_mode="html"
+        )
+        bot.register_next_step_handler(message, choose_gender_to_find)
+        return
+
+    if message.text == get_message(BUT_MALE) or message.text == get_message(BUT_FEMALE):
+        db_req.add_data_to_blank(DB_COL_PREF_GENDER, GENDER_MALE if message.text == BUT_MALE else GENDER_FEMALE)
+        print("Gender has already added!")
+
+        message = bot.send_message(
+            message.chat.id,
+            "Enter min age of blanks to see",
+            reply_markup=telebot.types.ReplyKeyboardRemove()
+        )
+        bot.register_next_step_handler(message, choose_min_age_to_find)
+    else:
+        message = bot.send_message(
+            message.chat.id,
+            get_message(MESS_EX_ENTER_GENDER),
+            parse_mode="html",
+            reply_markup=add_underline_keyboard(
+                but_names=[get_message(BUT_FEMALE), get_message(BUT_MALE)],
+                row_width=2
+            )
+        )
+        bot.register_next_step_handler(message, choose_gender_to_find)
+        return
 
 def choose_min_age_to_find(message):
-    db_req.add_data_to_blank("preferances_to_see_min_age", message.text)
-    print("Preferances_to_see_min_age has just added!")
-    bot.send_message(message.chat.id, "Print max age of blanks which you want to see")
+    if not message.content_type == "text":
+        message = bot.send_message(
+            message.chat.id,
+            get_message(MESS_EX_EXPECT_TEXT),
+            parse_mode="html"
+        )
+        bot.register_next_step_handler(message, choose_gender_to_find)
+        return
+
+    try:
+        age = int(message.text.strip())
+        if age <= 10 or age >= 100:
+            raise Exception
+    except ValueError:
+        message = bot.send_message(
+            message.chat.id,
+            get_message(MESS_EX_ENTER_AGE_NOT_NUM),
+            parse_mode="html"
+        )
+        bot.register_next_step_handler(message, choose_min_age_to_find)
+        return
+    except Exception:
+        message = bot.send_message(
+            message.chat.id,
+            get_message(MESS_EX_ENTER_AGE_LITTLE) if age <= 10 else get_message(MESS_EX_ENTER_AGE_LARGE),
+            parse_mode="html"
+        )
+        bot.register_next_step_handler(message, choose_min_age_to_find)
+        return
+
+    db_req.add_data_to_blank(DB_COL_PREF_MIN_AGE_TO_SEE, age)
+    print("MIN age to see has already added!")
+
+    message = bot.send_message(message.chat.id, "Print max age of blanks which you want to see")
     bot.register_next_step_handler(message, choose_max_age_to_find)
 
+
 def choose_max_age_to_find(message):
-    db_req.add_data_to_blank("choose_max_age_to_find", message.text)
-    print("Choose_max_age_to_find has just added!")
+    if not message.content_type == "text":
+        message = bot.send_message(
+            message.chat.id,
+            get_message(MESS_EX_EXPECT_TEXT),
+            parse_mode="html"
+        )
+        bot.register_next_step_handler(message, choose_gender_to_find)
+        return
 
-    markup = telebot.types.InlineKeyboardMarkup()
-    markup.add(telebot.types.InlineKeyboardButton(get_message("Let's start!"), callback_data="start_searching"))
+    try:
+        age = int(message.text.strip())
+        if age <= 10 or age >= 100:
+            raise Exception
+    except ValueError:
+        message = bot.send_message(
+            message.chat.id,
+            get_message(MESS_EX_ENTER_AGE_NOT_NUM),
+            parse_mode="html"
+        )
+        bot.register_next_step_handler(message, choose_max_age_to_find)
+        return
+    except Exception:
+        message = bot.send_message(
+            message.chat.id,
+            get_message(MESS_EX_ENTER_AGE_LITTLE) if age <= 10 else get_message(MESS_EX_ENTER_AGE_LARGE),
+            parse_mode="html"
+        )
+        bot.register_next_step_handler(message, choose_max_age_to_find)
+        return
 
-    bot.send_message(message.chat.id, get_message("OKEY, that is all! Let's watch the blanks!!!"))
+    db_req.add_data_to_blank(DB_COL_PREF_MAX_AGE_TO_SEE, age)
+    print("MAX age to see has already added!")
+
+
+    bot.send_message(
+        message.chat.id,
+        "OKEY, that is all! Let's watch the blanks!!!",
+        reply_markup=add_underline_keyboard(but_names=["Publish my blank ans START searching!"], row_width=1)
+    )
+
+    search_blanks(message)
 
 def search_blanks(message):
     pass
@@ -529,7 +620,7 @@ def add_inline_keyboard(but_names: list, row_width: int):
     return markup
 
 
-def add_underline_keyboard(but_names: list, row_width: int):
+def add_underline_keyboard(but_names: list, row_width: int = 2):
     """Create UNDERLINE keyboard with one line of buttons"""
 
     markup = telebot.types.ReplyKeyboardMarkup(row_width=row_width)
@@ -543,6 +634,10 @@ def add_underline_keyboard(but_names: list, row_width: int):
 
 def does_photo_contains_qr(file):
     return len(decode(Image.open(BytesIO(file))))
+
+@bot.message_handler(commands=['photo'])
+def photo(message):
+    bot.register_next_step_handler(message, add_photo)
 
 bot.infinity_polling()
 
