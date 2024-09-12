@@ -14,8 +14,7 @@ req_add_user_to_priv_tab = """INSERT INTO USERS_PRIVATE_INFO (tg_id, message)
 
 req_add_lang = """INSERT INTO USERS_GENERAL_INFO (language) VALUES (?)"""
 
-req_add_gender_to_blank = """INSERT INTO USERS_GENERAL_INFO (gender)
-                            VALUES (?)"""
+req_add_gender_to_blank = """UPDATE USERS_GENERAL_INFO """
 
 req_add_other_info_to_blank = """UPDATE USERS_GENERAL_INFO
                                 SET {column_name} = (?)
@@ -28,9 +27,9 @@ req_add_other_info_to_blank = """UPDATE USERS_GENERAL_INFO
 req_get_user_blank_info = """SELECT photo, name, age, city, description
                             FROM USERS_GENERAL_INFO
                             WHERE id = (SELECT id 
-                                FROM USERS_PRIVATE_INFO
-                                WHERE tg_id = (?)
-                            )"""
+                                        FROM USERS_PRIVATE_INFO
+                                        WHERE tg_id = (?))
+                          """
 
 req_get_name = """SELECT name FROM PEOPLE_NAMES WHERE name = (?)"""
 

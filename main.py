@@ -262,7 +262,7 @@ def add_gender(message):
         return
 
     if message.text == get_message(BUT_MALE) or message.text == get_message(BUT_FEMALE):
-        db_req.add_gender_to_blank(GENDER_MALE if message.text == BUT_MALE else GENDER_FEMALE)
+        db_req.add_data_to_blank(DB_COL_GENDER, GENDER_MALE if message.text == BUT_MALE else GENDER_FEMALE)
         print("Gender has already added!")
 
         message = bot.send_message(
@@ -448,14 +448,6 @@ def add_photo(message):
 
     get_all_user_information(message, message.from_user.id)
 
-def does_photo_contains_qr(file):
-    return len(decode(Image.open(BytesIO(file))))
-
-def get_metadata(file):
-    return Image.open(io.BytesIO(file))._getexif()
-
-def does_person_present_on_photo(file):
-    pass
 
 def get_all_user_information(message, tg_id):
     user_info = db_req.get_user_blank_info(tg_id)
@@ -470,12 +462,12 @@ def get_all_user_information(message, tg_id):
     )
     print("Blank has already added")
 
-    markup = telebot.types.InlineKeyboardMarkup()
-    markup.add(telebot.types.InlineKeyboardButton(get_message("Publish and start searching!"), callback_data="choose_gender_to_find"))
-
-    bot.send_message(message.chat.id,
-                     get_message("Do you want to publish your blank and start searching?)"),
-                     reply_markup=markup)
+    # markup = telebot.types.InlineKeyboardMarkup()
+    # markup.add(telebot.types.InlineKeyboardButton(get_message("Publish and start searching!"), callback_data="choose_gender_to_find"))
+    #
+    # bot.send_message(message.chat.id,
+    #                  get_message("Do you want to publish your blank and start searching?)"),
+    #                  reply_markup=markup)
 
 def choose_gender_to_find(message):
     db_req.add_data_to_blank("preferences_gender", message.text)
@@ -548,6 +540,9 @@ def add_underline_keyboard(but_names: list, row_width: int):
     markup.add(*buttons)
 
     return markup
+
+def does_photo_contains_qr(file):
+    return len(decode(Image.open(BytesIO(file))))
 
 bot.infinity_polling()
 
