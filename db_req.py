@@ -12,6 +12,8 @@ req_is_user_exists_in_priv_tab = """SELECT tg_id
 req_add_user_to_priv_tab = """INSERT INTO USERS_PRIVATE_INFO (tg_id, message)
                     VALUES (?, ?)"""
 
+req_add_lang = """INSERT INTO USERS_GENERAL_INFO (language) VALUES (?)"""
+
 req_add_gender_to_blank = """INSERT INTO USERS_GENERAL_INFO (gender)
                             VALUES (?)"""
 
@@ -30,15 +32,11 @@ req_get_user_blank_info = """SELECT photo, name, age, city, description
                                 WHERE tg_id = (?)
                             )"""
 
-req_get_uk_name = """SELECT name FROM UK_NAMES WHERE name = (?)"""
+req_get_name = """SELECT name FROM PEOPLE_NAMES WHERE name = (?)"""
 
-req_get_eng_name = """SELECT name FROM ENG_NAMES WHERE name = (?)"""
+req_get_city = """SELECT city FROM COUNTRIES_AND_CITIES WHERE city = (?)"""
 
-req_get_uk_city = """SELECT name FROM UK_CITIES WHERE name = (?)"""
-
-req_get_eng_city = """SELECT city FROM ENG_CITIES WHERE city = (?)"""
-
-req_get_all_tlds = """SELECT name FROM TLDS"""
+req_get_all_tlds = """SELECT tld FROM TLDS"""
 
 def is_user_exists_in_priv_db(user_tg_id):
     with sqlite3.connect(DB_NAME) as DB:
@@ -70,26 +68,20 @@ def get_user_blank_info(tg_id):
 
 def does_name_exists(name):
     with sqlite3.connect(DB_NAME) as db:
-        if db.execute(req_get_uk_name, (name,)).fetchone() is None:
-            if db.execute(req_get_eng_name, (name,)).fetchone() is None:
-                return False
-            else:
-                return True
-        else:
-            return True
+        return False if db.execute(req_get_name, (name,)).fetchone() is None else True
 
 
 def does_city_exists(city):
     with sqlite3.connect(DB_NAME) as db:
-        if db.execute(req_get_uk_city, (city,)).fetchone() is None:
-            if db.execute(req_get_eng_city, (city,)).fetchone() is None:
-                return False
-            else:
-                return True
-        else:
-            return True
+        return False if db.execute(req_get_city, (city,)).fetchone() is None else True
+
 
 
 def get_all_tlds():
     with sqlite3.connect(DB_NAME) as db:
         return db.execute(req_get_all_tlds).fetchall()
+
+
+def add_lang(lang):
+    with sqlite3.connect(DB_NAME) as DB:
+        DB.execute(req_add_lang, (lang,))

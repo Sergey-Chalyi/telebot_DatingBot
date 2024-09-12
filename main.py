@@ -174,8 +174,6 @@ messages = {
 }
 
 
-
-
 @bot.message_handler(commands=['start'])
 def bot_start(message):
     if not (db_req.is_user_exists_in_priv_db(message.from_user.id)):
@@ -191,7 +189,7 @@ def bot_start(message):
         message.chat.id,
         get_message(MESS_SET_LANG),
         parse_mode='html',
-        reply_markup=add_underline_keyboard(but_names=["🇺🇦 Ukrainian", '🇬🇧 English', '🇷🇺 Russian'], row_width=4)
+        reply_markup=add_underline_keyboard(but_names=["🇺🇦 Ukrainian", '🇬🇧 English', '🇷🇺 Russian'], row_width=3)
     )
 
     bot.register_next_step_handler(message, choose_lang)
@@ -238,6 +236,8 @@ def choose_lang(message):
         )
         bot.register_next_step_handler(message, choose_lang)
         return
+
+    db_req.add_lang(message.text.split()[1].lower())
 
     bot.send_message(
         message.chat.id,
