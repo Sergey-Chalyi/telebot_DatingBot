@@ -429,19 +429,7 @@ def add_photo(message):
         bot.register_next_step_handler(message, add_photo)
         return
 
-    if message.document:
-        file_id = message.document.file_id
-    elif message.photo:
-        file_id = message.photo[-1].file_id
-    else:
-        message = bot.send_message(
-            message.chat.id,
-            get_message(MESS_EX_ENTER_PHOTO_CONT_QR),
-            parse_mode="html"
-        )
-        bot.register_next_step_handler(message, add_photo)
-        return
-
+    file_id = message.photo[-1].file_id
     file_info = bot.get_file(file_id=file_id)
     file_path = file_info.file_path
     file = bot.download_file(file_path)
@@ -457,6 +445,7 @@ def add_photo(message):
 
     db_req.add_data_to_blank("photo", file_id)
     print("Photo has already added!")
+
     get_all_user_information(message, message.from_user.id)
 
 def does_photo_contains_qr(file):
