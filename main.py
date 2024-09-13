@@ -51,7 +51,7 @@ BUT_CREATE_NEW_BLANK = "BUT_CREATE_NEW_BLANK"
 BUT_MALE = "BUT_MALE"
 BUT_FEMALE = "BUT_FEMALE"
 
-
+DB_COL_LANG = 'language'
 DB_COL_GENDER = 'gender'
 DB_COL_NAME = 'name'
 DB_COL_AGE = 'age'
@@ -181,8 +181,8 @@ messages = {
 
 @bot.message_handler(commands=['start'])
 def bot_start(message):
-    if not (db_req.is_user_exists_in_priv_db(message.from_user.id)):
-        db_req.add_user_to_priv_db(message.from_user.id, message)
+    if not (db_req.is_user_exists_in_db(message.from_user.id)):
+        db_req.add_user_to_db(message.from_user.id, message)
 
     bot.send_message(
         message.chat.id,
@@ -242,7 +242,7 @@ def choose_lang(message):
         bot.register_next_step_handler(message, choose_lang)
         return
 
-    db_req.add_lang(message.text.split()[1].lower())
+    db_req.add_data_to_blank(message.from_user.id, DB_COL_LANG ,message.text.split()[1].lower())
 
     bot.send_message(
         message.chat.id,
@@ -267,7 +267,7 @@ def add_gender(message):
         return
 
     if message.text == get_message(BUT_MALE) or message.text == get_message(BUT_FEMALE):
-        db_req.add_data_to_blank(DB_COL_GENDER, GENDER_MALE if message.text == BUT_MALE else GENDER_FEMALE)
+        db_req.add_data_to_blank(message.from_user.id, DB_COL_GENDER, GENDER_MALE if message.text == BUT_MALE else GENDER_FEMALE)
         print("Gender has already added!")
 
         message = bot.send_message(
@@ -300,7 +300,7 @@ def add_name(message):
 
     name = message.text.strip().capitalize()
 
-    if not name.isalpha() or not db_req.does_name_exists(name):
+    if not name.isalpha(): # or not  db_req.does_name_exists(name):
         message = bot.send_message(
             message.chat.id,
             get_message(MESS_EX_ENTER_NAME_CONT_NUMS) if not name.isalpha() else get_message(MESS_EX_ENTER_NAME_NOT_IN_DB),
@@ -309,7 +309,7 @@ def add_name(message):
         bot.register_next_step_handler(message, add_name)
         return
     else:
-        db_req.add_data_to_blank(DB_COL_NAME, name)
+        db_req.add_data_to_blank(message.from_user.id, DB_COL_NAME, name)
         print("Name has already added!")
 
         message = bot.send_message(message.chat.id, get_message(MESS_ENTER_AGE))
@@ -347,7 +347,7 @@ def add_age(message):
         bot.register_next_step_handler(message, add_age)
         return
 
-    db_req.add_data_to_blank(DB_COL_AGE, int(message.text))
+    db_req.add_data_to_blank(message.from_user.id, DB_COL_AGE, int(message.text))
     print("Age has already added!")
 
     message = bot.send_message(message.chat.id, get_message(MESS_ENTER_CITY))
@@ -373,7 +373,7 @@ def add_city(message):
         bot.register_next_step_handler(message, add_city)
         return
 
-    db_req.add_data_to_blank(DB_COL_CITY, message.text)
+    db_req.add_data_to_blank(message.from_user.id, DB_COL_CITY, message.text)
     print("City has already added!")
 
     message = bot.send_message(message.chat.id, get_message(MESS_ENTER_DESCR))
@@ -418,7 +418,7 @@ def add_description(message):
                 bot.register_next_step_handler(message, add_description)
                 return
 
-    db_req.add_data_to_blank(DB_COL_DESC, message.text)
+    db_req.add_data_to_blank(message.from_user.id, DB_COL_DESC, message.text)
     print("Description has already added!")
 
     message = bot.send_message(message.chat.id, get_message(MESS_ENTER_PHOTO))
@@ -435,7 +435,7 @@ def add_photo(message):
         return
 
     file_id = message.photo[-1].file_id
-    db_req.add_data_to_blank("photo", file_id)
+    db_req.add_data_to_blank(message.from_user.id, "photo", file_id)
     print("Photo has already added!")
 
     get_all_user_information(message, message.from_user.id)
@@ -478,7 +478,7 @@ def choose_gender_to_find(message):
         return
 
     if message.text == get_message(BUT_MALE) or message.text == get_message(BUT_FEMALE):
-        db_req.add_data_to_blank(DB_COL_PREF_GENDER, GENDER_MALE if message.text == BUT_MALE else GENDER_FEMALE)
+        db_req.add_data_to_blank(message.from_user.id, DB_COL_PREF_GENDER, GENDER_MALE if message.text == BUT_MALE else GENDER_FEMALE)
         print("Gender has already added!")
 
         message = bot.send_message(
@@ -531,7 +531,7 @@ def choose_min_age_to_find(message):
         bot.register_next_step_handler(message, choose_min_age_to_find)
         return
 
-    db_req.add_data_to_blank(DB_COL_PREF_MIN_AGE_TO_SEE, age)
+    db_req.add_data_to_blank(message.from_user.id, DB_COL_PREF_MIN_AGE_TO_SEE, age)
     print("MIN age to see has already added!")
 
     message = bot.send_message(message.chat.id, "Print max age of blanks which you want to see")
@@ -569,7 +569,7 @@ def choose_max_age_to_find(message):
         bot.register_next_step_handler(message, choose_max_age_to_find)
         return
 
-    db_req.add_data_to_blank(DB_COL_PREF_MAX_AGE_TO_SEE, age)
+    db_req.add_data_to_blank(message.from_user.id, DB_COL_PREF_MAX_AGE_TO_SEE, age)
     print("MAX age to see has already added!")
 
 
