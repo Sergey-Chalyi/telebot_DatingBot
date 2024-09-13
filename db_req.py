@@ -28,6 +28,8 @@ req_get_city = """SELECT city FROM COUNTRIES_AND_CITIES WHERE city = (?)"""
 
 req_get_all_tlds = """SELECT tld FROM TLDS"""
 
+req_get_user_lang = """SELECT language FROM USERS_GENERAL_INFO WHERE tg_id = (?)"""
+
 def is_user_exists_in_db(user_tg_id):
     with sqlite3.connect(DB_NAME) as DB:
         if DB.execute(req_is_user_exists_in_db, (user_tg_id,)).fetchone() is None:
@@ -65,6 +67,11 @@ def does_city_exists(city):
 def get_all_tlds():
     with sqlite3.connect(DB_NAME) as db:
         return db.execute(req_get_all_tlds).fetchall()
+
+
+def get_user_lang(tg_id):
+    with sqlite3.connect(DB_NAME) as DB:
+        return DB.execute(req_get_user_lang, (tg_id,)).fetchone()[0]
 
 #
 # def add_lang(lang):

@@ -12,6 +12,10 @@ import db_req
 BOT_TOKEN = "7197713140:AAEHSyZLX3Q-CGU0GzK2r2Q7Z45rmSAHWd8"
 bot = telebot.TeleBot(BOT_TOKEN)
 
+languages = {
+    'english' : 0,
+    'ukrainian' : 1
+}
 
 user_lang = 0 # english language (default)
 
@@ -246,9 +250,9 @@ def choose_lang(message):
 
     bot.send_message(
         message.chat.id,
-        get_message(MESS_ENTER_GENDER),
+        get_message(MESS_ENTER_GENDER, message.from_user.id, ),
         reply_markup=add_underline_keyboard(
-            but_names=[get_message(BUT_FEMALE), get_message(BUT_MALE)],
+            but_names=[get_message(BUT_FEMALE, message.from_user.id), get_message(BUT_MALE, message.from_user.id)],
             row_width=2
         )
     )
@@ -260,29 +264,29 @@ def add_gender(message):
     if not message.content_type == "text":
         message = bot.send_message(
             message.chat.id,
-            get_message(MESS_EX_EXPECT_TEXT),
+            get_message(MESS_EX_EXPECT_TEXT, message.from_user.id),
             parse_mode="html"
         )
         bot.register_next_step_handler(message, add_gender)
         return
 
-    if message.text == get_message(BUT_MALE) or message.text == get_message(BUT_FEMALE):
-        db_req.add_data_to_blank(message.from_user.id, DB_COL_GENDER, GENDER_MALE if message.text == BUT_MALE else GENDER_FEMALE)
+    if message.text == get_message(BUT_MALE, message.from_user.id) or message.text == get_message(BUT_FEMALE, message.from_user.id):
+        db_req.add_data_to_blank(message.from_user.id, DB_COL_GENDER, (GENDER_MALE if message.text == get_message(BUT_MALE, message.from_user.id) else GENDER_FEMALE))
         print("Gender has already added!")
 
         message = bot.send_message(
             message.chat.id,
-            get_message(MESS_ENTER_NAME),
+            get_message(MESS_ENTER_NAME, message.from_user.id),
             reply_markup=telebot.types.ReplyKeyboardRemove()
         )
         bot.register_next_step_handler(message, add_name)
     else:
         message = bot.send_message(
             message.chat.id,
-            get_message(MESS_EX_ENTER_GENDER),
+            get_message(MESS_EX_ENTER_GENDER, message.from_user.id),
             parse_mode="html",
             reply_markup=add_underline_keyboard(
-                but_names=[get_message(BUT_FEMALE), get_message(BUT_MALE)],
+                but_names=[get_message(BUT_FEMALE, message.from_user.id), get_message(BUT_MALE, message.from_user.id)],
                 row_width=2
             )
         )
@@ -292,7 +296,7 @@ def add_name(message):
     if not message.content_type == "text":
         message = bot.send_message(
             message.chat.id,
-            get_message(MESS_EX_EXPECT_TEXT),
+            get_message(MESS_EX_EXPECT_TEXT, message.from_user.id),
             parse_mode="html"
         )
         bot.register_next_step_handler(message, add_name)
@@ -303,7 +307,7 @@ def add_name(message):
     if not name.isalpha(): # or not  db_req.does_name_exists(name):
         message = bot.send_message(
             message.chat.id,
-            get_message(MESS_EX_ENTER_NAME_CONT_NUMS) if not name.isalpha() else get_message(MESS_EX_ENTER_NAME_NOT_IN_DB),
+            get_message(MESS_EX_ENTER_NAME_CONT_NUMS, message.from_user.id) if not name.isalpha() else get_message(MESS_EX_ENTER_NAME_NOT_IN_DB, message.from_user.id),
             parse_mode="html"
         )
         bot.register_next_step_handler(message, add_name)
@@ -312,7 +316,7 @@ def add_name(message):
         db_req.add_data_to_blank(message.from_user.id, DB_COL_NAME, name)
         print("Name has already added!")
 
-        message = bot.send_message(message.chat.id, get_message(MESS_ENTER_AGE))
+        message = bot.send_message(message.chat.id, get_message(MESS_ENTER_AGE, message.from_user.id))
         bot.register_next_step_handler(message, add_age)
         return
 
@@ -320,7 +324,7 @@ def add_age(message):
     if not message.content_type == "text":
         message = bot.send_message(
             message.chat.id,
-            get_message(MESS_EX_EXPECT_TEXT),
+            get_message(MESS_EX_EXPECT_TEXT, message.from_user.id),
             parse_mode="html"
         )
         bot.register_next_step_handler(message, add_age)
@@ -333,7 +337,7 @@ def add_age(message):
     except ValueError:
         message = bot.send_message(
             message.chat.id,
-            get_message(MESS_EX_ENTER_AGE_NOT_NUM),
+            get_message(MESS_EX_ENTER_AGE_NOT_NUM, message.from_user.id),
             parse_mode="html"
         )
         bot.register_next_step_handler(message, add_age)
@@ -341,7 +345,7 @@ def add_age(message):
     except Exception:
         message = bot.send_message(
             message.chat.id,
-            get_message(MESS_EX_ENTER_AGE_LITTLE) if age <= 10 else get_message(MESS_EX_ENTER_AGE_LARGE),
+            get_message(MESS_EX_ENTER_AGE_LITTLE, message.from_user.id) if age <= 10 else get_message(MESS_EX_ENTER_AGE_LARGE, message.from_user.id),
             parse_mode="html"
         )
         bot.register_next_step_handler(message, add_age)
@@ -350,14 +354,14 @@ def add_age(message):
     db_req.add_data_to_blank(message.from_user.id, DB_COL_AGE, int(message.text))
     print("Age has already added!")
 
-    message = bot.send_message(message.chat.id, get_message(MESS_ENTER_CITY))
+    message = bot.send_message(message.chat.id, get_message(MESS_ENTER_CITY, message.from_user.id))
     bot.register_next_step_handler(message, add_city)
 
 def add_city(message):
     if not message.content_type == "text":
         message = bot.send_message(
             message.chat.id,
-            get_message(MESS_EX_EXPECT_TEXT),
+            get_message(MESS_EX_EXPECT_TEXT, message.from_user.id),
             parse_mode="html"
         )
         bot.register_next_step_handler(message, add_city)
@@ -367,7 +371,7 @@ def add_city(message):
     if not city.isalpha() or not db_req.does_city_exists(city):
         message = bot.send_message(
             message.chat.id,
-            get_message(MESS_EX_ENTER_CITY_CONT_NUM) if not city.isalpha() else get_message(MESS_EX_ENTER_CITY_NOT_INT_DB),
+            get_message(MESS_EX_ENTER_CITY_CONT_NUM, message.from_user.id) if not city.isalpha() else get_message(MESS_EX_ENTER_CITY_NOT_INT_DB, message.from_user.id),
             parse_mode="html"
         )
         bot.register_next_step_handler(message, add_city)
@@ -376,14 +380,14 @@ def add_city(message):
     db_req.add_data_to_blank(message.from_user.id, DB_COL_CITY, message.text)
     print("City has already added!")
 
-    message = bot.send_message(message.chat.id, get_message(MESS_ENTER_DESCR))
+    message = bot.send_message(message.chat.id, get_message(MESS_ENTER_DESCR, message.from_user.id))
     bot.register_next_step_handler(message, add_description)
 
 def add_description(message):
     if not message.content_type == "text":
         message = bot.send_message(
             message.chat.id,
-            get_message(MESS_EX_EXPECT_TEXT),
+            get_message(MESS_EX_EXPECT_TEXT, message.from_user.id),
             parse_mode="html"
         )
         bot.register_next_step_handler(message, add_description)
@@ -393,7 +397,7 @@ def add_description(message):
     if len(description) < 20 or len(description) > 300:
         message = bot.send_message(
             message.chat.id,
-            get_message(MESS_EX_ENTER_DESCR_TOO_LITTLE) if len(description) < 20 else get_message(MESS_EX_ENTER_DESCR_TOO_LARGE),
+            get_message(MESS_EX_ENTER_DESCR_TOO_LITTLE, message.from_user.id) if len(description) < 20 else get_message(MESS_EX_ENTER_DESCR_TOO_LARGE, message.from_user.id),
             parse_mode="html"
         )
         bot.register_next_step_handler(message, add_description)
@@ -401,7 +405,7 @@ def add_description(message):
     elif "http" in description or "www." in description:
         message = bot.send_message(
             message.chat.id,
-            get_message(MESS_EX_ENTER_DESCR_CONT_LINK),
+            get_message(MESS_EX_ENTER_DESCR_CONT_LINK, message.from_user.id),
             parse_mode="html"
         )
         bot.register_next_step_handler(message, add_description)
@@ -412,7 +416,7 @@ def add_description(message):
             if tld in description:
                 message = bot.send_message(
                     message.chat.id,
-                    get_message(MESS_EX_ENTER_DESCR_CONT_LINK),
+                    get_message(MESS_EX_ENTER_DESCR_CONT_LINK, message.from_user.id),
                     parse_mode="html"
                 )
                 bot.register_next_step_handler(message, add_description)
@@ -421,14 +425,14 @@ def add_description(message):
     db_req.add_data_to_blank(message.from_user.id, DB_COL_DESC, message.text)
     print("Description has already added!")
 
-    message = bot.send_message(message.chat.id, get_message(MESS_ENTER_PHOTO))
+    message = bot.send_message(message.chat.id, get_message(MESS_ENTER_PHOTO, message.from_user.id))
     bot.register_next_step_handler(message, add_photo)
 
 def add_photo(message):
     if not message.content_type == "photo":
         message = bot.send_message(
             message.chat.id,
-            get_message(MESS_EX_EXPECT_PHOTO),
+            get_message(MESS_EX_EXPECT_PHOTO, message.from_user.id),
             parse_mode="html"
         )
         bot.register_next_step_handler(message, add_photo)
@@ -459,7 +463,7 @@ def get_all_user_information(message, tg_id):
         message.chat.id,
         "Let's set up searching settings!\nChoose gender to search:",
         reply_markup=add_underline_keyboard(
-            but_names=[get_message(BUT_FEMALE), get_message(BUT_MALE)],
+            but_names=[get_message(BUT_FEMALE, message.from_user.id), get_message(BUT_MALE, message.from_user.id)],
             row_width=2
         )
     )
@@ -471,14 +475,14 @@ def choose_gender_to_find(message):
     if not message.content_type == "text":
         message = bot.send_message(
             message.chat.id,
-            get_message(MESS_EX_EXPECT_TEXT),
+            get_message(MESS_EX_EXPECT_TEXT, message.from_user.id),
             parse_mode="html"
         )
         bot.register_next_step_handler(message, choose_gender_to_find)
         return
 
-    if message.text == get_message(BUT_MALE) or message.text == get_message(BUT_FEMALE):
-        db_req.add_data_to_blank(message.from_user.id, DB_COL_PREF_GENDER, GENDER_MALE if message.text == BUT_MALE else GENDER_FEMALE)
+    if message.text == get_message(BUT_MALE, message.from_user.id) or message.text == get_message(BUT_FEMALE, message.from_user.id):
+        db_req.add_data_to_blank(message.from_user.id, DB_COL_PREF_GENDER, GENDER_MALE if message.text == get_message(BUT_MALE, message.from_user.id) else GENDER_FEMALE)
         print("Gender has already added!")
 
         message = bot.send_message(
@@ -490,10 +494,10 @@ def choose_gender_to_find(message):
     else:
         message = bot.send_message(
             message.chat.id,
-            get_message(MESS_EX_ENTER_GENDER),
+            get_message(MESS_EX_ENTER_GENDER, message.from_user.id),
             parse_mode="html",
             reply_markup=add_underline_keyboard(
-                but_names=[get_message(BUT_FEMALE), get_message(BUT_MALE)],
+                but_names=[get_message(BUT_FEMALE, message.from_user.id), get_message(BUT_MALE, message.from_user.id)],
                 row_width=2
             )
         )
@@ -504,7 +508,7 @@ def choose_min_age_to_find(message):
     if not message.content_type == "text":
         message = bot.send_message(
             message.chat.id,
-            get_message(MESS_EX_EXPECT_TEXT),
+            get_message(MESS_EX_EXPECT_TEXT, message.from_user.id),
             parse_mode="html"
         )
         bot.register_next_step_handler(message, choose_gender_to_find)
@@ -517,7 +521,7 @@ def choose_min_age_to_find(message):
     except ValueError:
         message = bot.send_message(
             message.chat.id,
-            get_message(MESS_EX_ENTER_AGE_NOT_NUM),
+            get_message(MESS_EX_ENTER_AGE_NOT_NUM, message.from_user.id),
             parse_mode="html"
         )
         bot.register_next_step_handler(message, choose_min_age_to_find)
@@ -525,7 +529,7 @@ def choose_min_age_to_find(message):
     except Exception:
         message = bot.send_message(
             message.chat.id,
-            get_message(MESS_EX_ENTER_AGE_LITTLE) if age <= 10 else get_message(MESS_EX_ENTER_AGE_LARGE),
+            get_message(MESS_EX_ENTER_AGE_LITTLE, message.from_user.id) if age <= 10 else get_message(MESS_EX_ENTER_AGE_LARGE, message.from_user.id),
             parse_mode="html"
         )
         bot.register_next_step_handler(message, choose_min_age_to_find)
@@ -542,7 +546,7 @@ def choose_max_age_to_find(message):
     if not message.content_type == "text":
         message = bot.send_message(
             message.chat.id,
-            get_message(MESS_EX_EXPECT_TEXT),
+            get_message(MESS_EX_EXPECT_TEXT, message.from_user.id),
             parse_mode="html"
         )
         bot.register_next_step_handler(message, choose_gender_to_find)
@@ -555,7 +559,7 @@ def choose_max_age_to_find(message):
     except ValueError:
         message = bot.send_message(
             message.chat.id,
-            get_message(MESS_EX_ENTER_AGE_NOT_NUM),
+            get_message(MESS_EX_ENTER_AGE_NOT_NUM, message.from_user.id),
             parse_mode="html"
         )
         bot.register_next_step_handler(message, choose_max_age_to_find)
@@ -563,7 +567,7 @@ def choose_max_age_to_find(message):
     except Exception:
         message = bot.send_message(
             message.chat.id,
-            get_message(MESS_EX_ENTER_AGE_LITTLE) if age <= 10 else get_message(MESS_EX_ENTER_AGE_LARGE),
+            get_message(MESS_EX_ENTER_AGE_LITTLE, message.from_user.id) if age <= 10 else get_message(MESS_EX_ENTER_AGE_LARGE, message.from_user.id),
             parse_mode="html"
         )
         bot.register_next_step_handler(message, choose_max_age_to_find)
@@ -598,23 +602,27 @@ def callback_message(callback):
             return
 
 
-def get_message(message):
-    return messages[message][user_lang]
+def get_message(message, tg_id = None):
+    if tg_id == None:
+        return messages[message][0]
+    else:
+        return messages[message][languages[db_req.get_user_lang(tg_id)]]
 
 
-def get_callback_name(but_name):
-    if but_name == get_message(BUT_CREATE_NEW_BLANK):
+
+def get_callback_name(but_name, message):
+    if but_name == get_message(BUT_CREATE_NEW_BLANK, message.from_user.id):
         return "create_blank"
 
 
-def add_inline_keyboard(but_names: list, row_width: int):
+def add_inline_keyboard(but_names: list, row_width: int, message):
     """Create INLINE keyboard"""
 
     markup = telebot.types.InlineKeyboardMarkup(row_width=row_width)
 
     buttons = []
     for but_name in but_names:
-        buttons.append(telebot.types.InlineKeyboardButton(but_name, callback_data=get_callback_name(but_name)))
+        buttons.append(telebot.types.InlineKeyboardButton(but_name, callback_data=get_callback_name(but_name, message)))
     markup.add(*buttons)
 
     return markup
