@@ -7,7 +7,7 @@ from pyzbar.pyzbar import decode
 
 import telebot
 import db_req
-
+from User import User
 
 BOT_TOKEN = "7197713140:AAEHSyZLX3Q-CGU0GzK2r2Q7Z45rmSAHWd8"
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -585,8 +585,24 @@ def choose_max_age_to_find(message):
 
     search_blanks(message)
 
+
 def search_blanks(message):
-    pass
+    while True:
+        blanks_preferances = db_req.get_user_info_for_searching(
+            tg_id=message.from_user.id,
+            gender=db_req.get_user_info(col_name="preferences_gender", tg_id=message.from_user.id),
+            min_age=db_req.get_user_info(col_name="preferances_to_see_min_age", tg_id=message.from_user.id),
+            max_age=db_req.get_user_info(col_name="preferances_to_see_max_age", tg_id=message.from_user.id)
+        )
+
+        for blank in blanks_preferances:
+            photo, name, age, city, description = blank
+            get_pref_user_blank(message, photo, name, age, city, description)
+
+
+
+
+
 
 
 @bot.callback_query_handler(func=lambda callback: True)
@@ -647,6 +663,19 @@ def does_photo_contains_qr(file):
 def photo(message):
     bot.register_next_step_handler(message, add_photo)
 
+
+def get_pref_user_blank(message, photo, name, age, city, description):
+    user_all_description = f"""**{name}, {age}, {city}**\n\n{description}"""
+
+    bot.send_photo(
+        message.chat.id,
+        photo,
+        caption=user_all_description,
+        parse_mode='Markdown'
+    )
+
+
 bot.infinity_polling()
+
 
 

@@ -30,6 +30,13 @@ req_get_all_tlds = """SELECT tld FROM TLDS"""
 
 req_get_user_lang = """SELECT language FROM USERS_GENERAL_INFO WHERE tg_id = (?)"""
 
+req_get_user_info_for_searching = """SELECT photo, name, age, city, description 
+                                    FROM USERS_GENERAL_INFO 
+                                    WHERE tg_id != (?) AND gender = (?) AND (age >= (?) AND age <= (?))"""
+
+req_get_user_info = """SELECT {column_name} FROM USERS_GENERAL_INFO WHERE tg_id = (?)"""
+
+
 def is_user_exists_in_db(user_tg_id):
     with sqlite3.connect(DB_NAME) as DB:
         if DB.execute(req_is_user_exists_in_db, (user_tg_id,)).fetchone() is None:
@@ -73,7 +80,16 @@ def get_user_lang(tg_id):
     with sqlite3.connect(DB_NAME) as DB:
         return DB.execute(req_get_user_lang, (tg_id,)).fetchone()[0]
 
-#
-# def add_lang(lang):
-#     with sqlite3.connect(DB_NAME) as DB:
-#         DB.execute(req_add_lang, (lang,))
+def get_user_info_for_searching(tg_id, gender, min_age, max_age):
+    with sqlite3.connect(DB_NAME) as DB:
+        list_info = []
+        cursor = DB.execute(req_get_user_info_for_searching, (tg_id, gender, min_age, max_age))
+        for el in cursor:
+            list_info.append(el)
+        return list_info
+
+
+def get_user_info(col_name, tg_id):
+    with sqlite3.connect(DB_NAME) as DB:
+        return DB.execute(req_get_user_info.format(column_name=col_name), (tg_id,)).fetchone()[0]
+
