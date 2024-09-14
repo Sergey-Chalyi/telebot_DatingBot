@@ -30,12 +30,15 @@ req_get_all_tlds = """SELECT tld FROM TLDS"""
 
 req_get_user_lang = """SELECT language FROM USERS_GENERAL_INFO WHERE tg_id = (?)"""
 
-req_get_user_info_for_searching = """SELECT photo, name, age, city, description 
+req_get_user_info_for_searching = """SELECT tg_id, photo, name, age, city, description 
                                     FROM USERS_GENERAL_INFO 
                                     WHERE tg_id != (?) AND gender = (?) AND (age >= (?) AND age <= (?))"""
 
 req_get_user_info = """SELECT {column_name} FROM USERS_GENERAL_INFO WHERE tg_id = (?)"""
 
+req_get_users_likes = """SELECT tg_id_blank FROM LIKES WHERE tg_id_user = (?)"""
+
+req_add_users_likes = """INSERT INTO LIKES (tg_id_user, tg_id_blank, like) VALUES (?, ?, ?)"""
 
 def is_user_exists_in_db(user_tg_id):
     with sqlite3.connect(DB_NAME) as DB:
@@ -93,3 +96,15 @@ def get_user_info(col_name, tg_id):
     with sqlite3.connect(DB_NAME) as DB:
         return DB.execute(req_get_user_info.format(column_name=col_name), (tg_id,)).fetchone()[0]
 
+def get_users_likes(tg_id_user):
+    with sqlite3.connect(DB_NAME) as DB:
+        likes_list = []
+        cursor = DB.execute(req_get_users_likes, (tg_id_user,))
+        for el in cursor:
+            likes_list.append(el[0])
+        return likes_list
+
+def add_users_likes(tg_id_user, tg_id_blank, like):
+    with sqlite3.connect(DB_NAME) as DB:
+        DB.execute(req_add_users_likes, (tg_id_user, tg_id_blank, like))
+        DB.commit()
