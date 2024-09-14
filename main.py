@@ -1,15 +1,7 @@
-import io
 import re
-from io import BytesIO
-from typing import final
-
-from PIL import Image
-from PIL.ImageChops import constant
-from pyzbar.pyzbar import decode
 
 import telebot
 import db_req
-from User import User
 
 BOT_TOKEN = "7197713140:AAEHSyZLX3Q-CGU0GzK2r2Q7Z45rmSAHWd8"
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -584,110 +576,89 @@ def choose_max_age_to_find(message):
         reply_markup=add_underline_keyboard(["Publish my blank and START searching!"], row_width=2)
     )
 
-    # ----------
-    blanks_preferances = db_req.get_user_info_for_searching(
-        tg_id=message.from_user.id,
-        gender=db_req.get_user_info(col_name="preferences_gender", tg_id=message.from_user.id),
-        min_age=db_req.get_user_info(col_name="preferances_to_see_min_age", tg_id=message.from_user.id),
-        max_age=db_req.get_user_info(col_name="preferances_to_see_max_age", tg_id=message.from_user.id)
-    )
-    blanks_preferances = del_watched_blanks(blanks_preferances, message.from_user.id)
-
-    if (len(blanks_preferances) > 0):
-        search_blanks(message, blanks_preferances[0][0])
-    else:
-        print("nothing")
-
-    # ----------
+    bot.register_next_step_handler(message, start_search_blanks)
 
 
-    # bot.register_next_step_handler(message, search_blanks)
-
-
-# -----------------------------------------------
-def search_blanks(message, tg_id_blank):
+def start_search_blanks(message):
     if not message.content_type == "text":
         message = bot.send_message(
             message.chat.id,
             get_message(MESS_EX_EXPECT_TEXT, message.from_user.id),
             parse_mode="html"
         )
-        bot.register_next_step_handler(message, search_blanks)
+        bot.register_next_step_handler(message, start_search_blanks)
         return
-    elif message.text == "Publish my blank and START searching!":
-        pass
-    elif message.text in ['💕', '👎', '⛔️', '⚙']:
-        # add to db
-        is_blank_liked(message, tg_id_blank)
-
-        blanks_preferances = db_req.get_user_info_for_searching(
-            tg_id=message.from_user.id,
-            gender=db_req.get_user_info(col_name="preferences_gender", tg_id=message.from_user.id),
-            min_age=db_req.get_user_info(col_name="preferances_to_see_min_age", tg_id=message.from_user.id),
-            max_age=db_req.get_user_info(col_name="preferances_to_see_max_age", tg_id=message.from_user.id)
-        )
-        print("Suitable blanks were selected from db (not sorted)")
-        blanks_preferances = del_watched_blanks(blanks_preferances, message.from_user.id)
-        print("Suitable blanks were sorted")
-
-        if blanks_preferances.__len__() != 0:
-            get_pref_user_blank(message, *blanks_preferances[0])
-            print("blank was put on the screen")
-            bot.register_next_step_handler(message, search_blanks)
-
-        else:
-            bot.send_message(message.chat.id, "There is no more blanks to search(")
-    elif message.text not in ['💕', '👎', '⛔️', '⚙']:
-        # write another exception here
+    elif not message.text == "Publish my blank and START searching!":
         message = bot.send_message(
             message.chat.id,
-            "There isn`t such emoji",
+            "exception",
             parse_mode="html"
         )
-        bot.register_next_step_handler(message, search_blanks)
+        bot.register_next_step_handler(message, start_search_blanks)
         return
+    print("1 message id =", message.from_user.id)
 
+    search_blanks(message)
+
+def search_blanks(message):
+    print("2 message id =", message.from_user.id)
+
+    blanks_preferances = get_blanks_preferances(message)
+    print(blanks_preferances)
+    if blanks_preferances.__len__() != 0:
+        show_blank(message, *blanks_preferances[0])
+    else:
+        bot.send_message(message.chat.id, "There is no more blanks to search(")
+
+
+
+def show_blank(message, tg_id_blank, photo, name, age, city, description):
+    user_all_description = f"""**{name}, {age}, {city}**\n\n{description}"""
+
+    # message = bot.send_photo(
+    #     message.chat.id,
+    #     photo,
+    #     caption=user_all_description,
+    #     parse_mode='Markdown',
+    #     reply_markup=add_underline_keyboard(['💕', '👎', '⛔️', '⚙'], row_width=4)
+    # )
+
+    bot.send_message(
+        message.chat.id,
+        user_all_description,
+        parse_mode='Markdown',
+        reply_markup=add_underline_keyboard(['💕', '👎', '⛔️', '⚙'], row_width=4)
+    )
+
+    register_like(message, tg_id_blank)
+
+    bot.register_next_step_handler(message, search_blanks)
+
+def get_blanks_preferances(message):
+    print("3 message id =", message.from_user.id)
     blanks_preferances = db_req.get_user_info_for_searching(
         tg_id=message.from_user.id,
         gender=db_req.get_user_info(col_name="preferences_gender", tg_id=message.from_user.id),
         min_age=db_req.get_user_info(col_name="preferances_to_see_min_age", tg_id=message.from_user.id),
         max_age=db_req.get_user_info(col_name="preferances_to_see_max_age", tg_id=message.from_user.id)
     )
-    print("Suitable blanks were selected from db (not sorted)")
-    blanks_preferances = del_watched_blanks(blanks_preferances, message.from_user.id)
-    print("Suitable blanks were sorted")
+    print("get_blanks_preferances - finish")
+    return del_watched_blanks(blanks_preferances, message.from_user.id)
 
 
-    if blanks_preferances.__len__() != 0:
-        get_pref_user_blank(message, *blanks_preferances[0])
-        print("blank was put on the screen")
-        bot.register_next_step_handler(message, search_blanks)
-
+def register_like(message, tg_id_blank):
+    if message.text == '💕' or message.text == '👎':
+        db_req.add_users_likes(
+            tg_id_user=message.from_user.id,
+            tg_id_blank=tg_id_blank,
+            like= 'yes' if message.text == '💕' else "no"
+        )
+    elif message.text == '⛔️':
+        pass
+    elif message.text == '⚙':
+        pass
     else:
-        bot.send_message(message.chat.id, "There is no more blanks to search(")
-        while True:
-            blanks_preferances = db_req.get_user_info_for_searching(
-                tg_id=message.from_user.id,
-                gender=db_req.get_user_info(col_name="preferences_gender", tg_id=message.from_user.id),
-                min_age=db_req.get_user_info(col_name="preferances_to_see_min_age", tg_id=message.from_user.id),
-                max_age=db_req.get_user_info(col_name="preferances_to_see_max_age", tg_id=message.from_user.id)
-            )
-            print("Suitable blanks were selected from db (not sorted)")
-
-            blanks_preferances = del_watched_blanks(blanks_preferances, message.from_user.id)
-
-            if blanks_preferances.__len__() > 0:
-                bot.register_next_step_handler(message, search_blanks)
-                break
-
-# -----------------------------------------------
-
-
-
-
-
-
-
+        pass
 
 @bot.callback_query_handler(func=lambda callback: True)
 def callback_message(callback):
@@ -741,44 +712,6 @@ def add_underline_keyboard(but_names: list, row_width: int = 2):
 
     return markup
 
-def does_photo_contains_qr(file):
-    return len(decode(Image.open(BytesIO(file))))
-
-
-def get_pref_user_blank(message, tg_id_blank, photo, name, age, city, description):
-    user_all_description = f"""**{name}, {age}, {city}**\n\n{description}"""
-
-    # message = bot.send_photo(
-    #     message.chat.id,
-    #     photo,
-    #     caption=user_all_description,
-    #     parse_mode='Markdown',
-    #     reply_markup=add_underline_keyboard(['💕', '👎', '⛔️', '⚙'], row_width=4)
-    # )
-
-    message = bot.send_message(
-        message.chat.id,
-        user_all_description,
-        parse_mode='Markdown',
-        reply_markup=add_underline_keyboard(['💕', '👎', '⛔️', '⚙'], row_width=4)
-    )
-
-    is_blank_liked(message, tg_id_blank)
-
-
-def is_blank_liked(message, tg_id_blank: int):
-    if message.text == '💕' or message.text == '👎':
-        db_req.add_users_likes(
-            tg_id_user = message.from_user.id,
-            tg_id_blank = tg_id_blank,
-            like = message.text
-        )
-    elif message.text == '⛔️':
-        pass
-    elif message.text == '⚙':
-        pass
-    else:
-        pass
 
 def del_watched_blanks(blanks_preferances: list, tg_id_user: int):
     watched_blanks = db_req.get_users_likes(tg_id_user)

@@ -50,6 +50,7 @@ def is_user_exists_in_db(user_tg_id):
 def add_user_to_db(user_tg_id, message):
     with sqlite3.connect(DB_NAME) as DB:
         DB.execute(req_add_user_to_db, (user_tg_id, pickle.dumps(message)))
+        DB.commit()
 # def add_gender_to_blank(id ,gender):
 #     with sqlite3.connect(DB_NAME) as DB:
 #         DB.execute(req_add_gender_to_blank, (id, gender))
@@ -57,6 +58,8 @@ def add_user_to_db(user_tg_id, message):
 def add_data_to_blank(cur_user_tg_id, column_name, value):
     with sqlite3.connect(DB_NAME) as DB:
         DB.execute(req_add_other_info_to_blank.format(column_name = column_name), (value, cur_user_tg_id))
+        DB.commit()
+
 
 def get_user_blank_info(tg_id):
     with sqlite3.connect(DB_NAME) as DB:
