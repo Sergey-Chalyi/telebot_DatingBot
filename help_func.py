@@ -23,13 +23,13 @@ def add_underline_keyboard(but_names: list, row_width: int = 2):
 
 
 def get_blanks_preferances(message):
-    blanks_preferances = db_get_user_info_for_searching(
+    blanks_preferances = db_get_blanks_preferances(
         tg_id=message.from_user.id,
         gender=db_get_user_info(col_name="preferences_gender", tg_id=message.from_user.id),
         min_age=db_get_user_info(col_name="preferances_to_see_min_age", tg_id=message.from_user.id),
         max_age=db_get_user_info(col_name="preferances_to_see_max_age", tg_id=message.from_user.id)
     )
-    return del_watched_blanks(blanks_preferances, message.from_user.id)
+    return blanks_preferances
 
 
 def del_watched_blanks(blanks_preferances: list, tg_id_user: int):
@@ -41,16 +41,3 @@ def del_watched_blanks(blanks_preferances: list, tg_id_user: int):
     return final_blanks_list
 
 
-def register_like(message, tg_id_blank):
-    if message.text == '💕' or message.text == '👎':
-        db_add_users_likes(
-            tg_id_user=message.from_user.id,
-            tg_id_blank=tg_id_blank,
-            like= 'yes' if message.text == '💕' else "no"
-        )
-    elif message.text == '⛔️':
-        pass
-    elif message.text == '⚙':
-        pass
-    else:
-        pass

@@ -1,4 +1,6 @@
 import re
+from functools import partial
+
 import telebot
 
 from db_req import *
@@ -324,6 +326,7 @@ def add_max_age_to_search(message):
     bot.register_next_step_handler(message, start_searching)
 
 
+@bot.message_handler(commands=['search'])
 def start_searching(message):
     if not message.content_type == "text":
         send_exception_type(message, "text", start_searching)
@@ -342,11 +345,16 @@ def start_searching(message):
 
 
 def search_blanks(message):
-    blanks_preferances = get_blanks_preferances(message)
-    print(blanks_preferances)
+    if not message.content_type == "text":
+        send_exception_type(message, "text", search_blanks)
+        return
+
+    blanks_preferances = del_watched_blanks(get_blanks_preferances(message), message.from_user.id)
+
     if blanks_preferances.__len__() != 0:
         show_blank(message, *blanks_preferances[0])
     else:
+        # here I need to work on it
         bot.send_message(message.chat.id, "There is no more blanks to search(")
 
 
@@ -368,9 +376,24 @@ def show_blank(message, tg_id_blank, photo, name, age, city, description):
         reply_markup=add_underline_keyboard(['💕', '👎', '⛔️', '⚙'], row_width=4)
     )
 
-    register_like(message, tg_id_blank)
+    bot.register_next_step_handler(message, lambda msg: register_like(msg, tg_id_blank))
 
-    bot.register_next_step_handler(message, search_blanks)
+
+def register_like(message, tg_id_blank):
+    if message.text == '💕' or message.text == '👎':
+        db_add_users_likes(
+            tg_id_user=message.from_user.id,
+            tg_id_blank=tg_id_blank,
+            like= 'yes' if message.text == '💕' else "no"
+        )
+    elif message.text == '⛔️':
+        pass
+    elif message.text == '⚙':
+        pass
+    else:
+        pass
+
+    search_blanks(message)
 
 
 def send_exception_type(message, type, method, but_names:list=None, row_width:int=None):
