@@ -40,12 +40,49 @@ req_get_users_likes = """SELECT tg_id_blank FROM LIKES WHERE tg_id_user = (?)"""
 
 req_add_users_likes = """INSERT INTO LIKES (tg_id_user, tg_id_blank, like) VALUES (?, ?, ?)"""
 
+# ------------------------
+req_get_all_positive_user_likes = """
+    SELECT tg_id_blank
+    FROM LIKES
+    WHERE tg_id_user = (?) AND
+          like = 'yes'
+"""
+
+def get_all_positive_user_likes(user_id):
+    with sqlite3.connect(DB_NAME) as DB:
+        cursor = DB.execute(req_get_all_positive_user_likes, (user_id,))
+        all_positive_user_likes = []
+        for el in cursor:
+            all_positive_user_likes.append(el[0])
+        return all_positive_user_likes
+
+
+req_get_all_positive_likes_myself = """
+    SELECT tg_id_user 
+    FROM LIKES
+    WHERE tg_id_blank = (?) AND
+          like = 'yes' 
+"""
+
+def get_all_positive_likes_myself(user_id):
+    with sqlite3.connect(DB_NAME) as DB:
+        cursor = DB.execute(req_get_all_positive_likes_myself, (1939731383,))
+        all_positive_likes_myself = []
+        for el in cursor:
+            all_positive_likes_myself.append(el[0])
+        return all_positive_likes_myself
+
+
+
+# ------------------------
+
 def db_is_user_exists(user_tg_id):
     with sqlite3.connect(DB_NAME) as DB:
         if DB.execute(req_is_user_exists_in_db, (user_tg_id,)).fetchone() is None:
             return False
         else:
             return True
+
 
 def db_add_user(user_tg_id, message):
     with sqlite3.connect(DB_NAME) as DB:
@@ -54,6 +91,7 @@ def db_add_user(user_tg_id, message):
 # def db_add_gender_to_blank(id ,gender):
 #     with sqlite3.connect(DB_NAME) as DB:
 #         DB.execute(req_add_gender_to_blank, (id, gender))
+
 
 def db_add_data_to_blank(cur_user_tg_id, column_name, value):
     with sqlite3.connect(DB_NAME) as DB:
@@ -76,7 +114,6 @@ def db_does_city_exists(city):
         return False if db.execute(req_get_city, (city,)).fetchone() is None else True
 
 
-
 def db_get_all_tlds():
     with sqlite3.connect(DB_NAME) as db:
         return db.execute(req_get_all_tlds).fetchall()
@@ -85,6 +122,7 @@ def db_get_all_tlds():
 def db_get_user_lang(tg_id):
     with sqlite3.connect(DB_NAME) as DB:
         return DB.execute(req_get_user_lang, (tg_id,)).fetchone()[0]
+
 
 def db_get_blanks_preferances(tg_id, gender, min_age, max_age):
     with sqlite3.connect(DB_NAME) as DB:
@@ -99,6 +137,7 @@ def db_get_user_info(col_name, tg_id):
     with sqlite3.connect(DB_NAME) as DB:
         return DB.execute(req_get_user_info.format(column_name=col_name), (tg_id,)).fetchone()[0]
 
+
 def db_get_users_likes(tg_id_user):
     with sqlite3.connect(DB_NAME) as DB:
         likes_list = []
@@ -107,7 +146,9 @@ def db_get_users_likes(tg_id_user):
             likes_list.append(el[0])
         return likes_list
 
+
 def db_add_users_likes(tg_id_user, tg_id_blank, like):
     with sqlite3.connect(DB_NAME) as DB:
         DB.execute(req_add_users_likes, (tg_id_user, tg_id_blank, like))
         DB.commit()
+

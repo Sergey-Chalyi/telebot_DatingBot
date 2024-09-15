@@ -1,7 +1,9 @@
 import re
-from functools import partial
+from typing import final
 
 import telebot
+
+from functools import partial
 
 from db_req import *
 from constants import *
@@ -352,7 +354,12 @@ def search_blanks(message):
     blanks_preferances = del_watched_blanks(get_blanks_preferances(message), message.from_user.id)
 
     if blanks_preferances.__len__() != 0:
+        if check_mutual_likes_of_my_blank(message):
+            return  # Прерываем выполнение, если был зарегистрирован обработчик шага
+
+        # show next blank
         show_blank(message, *blanks_preferances[0])
+
     else:
         # here I need to work on it
         bot.send_message(message.chat.id, "There is no more blanks to search(")
@@ -380,6 +387,13 @@ def show_blank(message, tg_id_blank, photo, name, age, city, description):
 
 
 def register_like(message, tg_id_blank):
+    if not message.content_type == "text":
+        send_exception_type(message, "text", register_like)
+        return
+    if message.text not in ['💕', '👎', '⛔️', '⚙']:
+        send_exception_mistake(message, "not an emoji", register_like)
+        return
+
     if message.text == '💕' or message.text == '👎':
         db_add_users_likes(
             tg_id_user=message.from_user.id,
@@ -394,6 +408,34 @@ def register_like(message, tg_id_blank):
         pass
 
     search_blanks(message)
+
+
+def check_mutual_likes_of_my_blank(message):
+    mutual_likes = get_list_of_mutual_likes(message.from_user.id)
+    print(mutual_likes)
+    if len(mutual_likes) > 0:
+        bot.send_message(
+            message.chat.id,
+            f"Tou have liked {len(mutual_likes)} {'time' if len(mutual_likes) == 1 else 'times'}"
+            f"\nDo you want to see who has liked you?",
+            reply_markup=add_underline_keyboard(but_names=['yes', 'no'], row_width=2)
+        )
+        bot.register_next_step_handler(message, do_show_liked_blank)
+        return True
+    return False
+
+
+def do_show_liked_blank(message):
+    if message.text == 'yes':
+        show_liked_blank(message)
+        # maybe here we need to place add watched field into db
+    elif message.text == 'no':
+        check_mutual_likes_of_my_blank(message)
+
+
+
+def show_liked_blank(message):
+    print("send blank")
 
 
 def send_exception_type(message, type, method, but_names:list=None, row_width:int=None):
