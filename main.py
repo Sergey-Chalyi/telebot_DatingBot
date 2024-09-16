@@ -45,7 +45,6 @@ def bot_start(message):
     bot.send_message(message.chat.id, get_message(MESS_WELCOME), parse_mode='html')
     add_username(message)
 
-
 def add_username(message):
     if bot.get_chat(message.from_user.id).username is None:
         bot.send_message(
@@ -100,6 +99,7 @@ def check_username_on_existing(message):
             reply_markup=add_underline_keyboard(but_names=["🇺🇦 Ukrainian", '🇬🇧 English', '🇷🇺 Russian'], row_width=3)
         )
         bot.register_next_step_handler(message, add_user_lang)
+
 
 @check_message_type(content_type='text')
 def add_user_lang(message):
@@ -385,17 +385,14 @@ def start_searching(message):
 
 @check_message_type(content_type='text')
 def search_blanks(message):
-    if not message.content_type == "text":
-        send_exception_type(message, "text", search_blanks)
-        return
-
     blanks_preferances = del_watched_blanks(get_blanks_preferances(message), message.from_user.id)
 
     if blanks_preferances.__len__() != 0:
         if check_mutual_likes_of_my_blank(message):
             return
-        if check_first_likes_of_my_blank(message):
-            return
+
+        # if check_first_likes_of_my_blank(message):
+        #     return
 
         # show next blank
         show_blank(message, *blanks_preferances[0])
@@ -403,6 +400,96 @@ def search_blanks(message):
     else:
         # here I need to work on it
         bot.send_message(message.chat.id, "There is no more blanks to search(")
+
+def check_mutual_likes_of_my_blank(message):
+    mutual_likes = get_list_of_mutual_likes(message.from_user.id)
+
+    if len(mutual_likes) > 0:
+        bot.send_message(
+            message.chat.id,
+            f"Tou have liked {len(mutual_likes)} {'time' if len(mutual_likes) == 1 else 'times'}"
+            f"\nDo you want to see who has liked you?",
+            reply_markup=add_underline_keyboard(but_names=['yes', 'no'], row_width=2)
+        )
+        bot.register_next_step_handler(message, lambda msg: do_show_liked_blank(msg, mutual_likes))
+        return True
+    return False
+
+
+def do_show_liked_blank(message, mutual_likes):
+    if message.text == 'yes':
+        show_liked_blanks(message, mutual_likes)
+        # maybe here we need to place add watched field into db
+    elif message.text == 'no':
+        # add info to like db that user did want to see the blanks
+        make_all_mutual_blanks_watched(message, mutual_likes)
+        bot.send_message(
+            message.chat.id,
+            "Okey!"
+        )
+        search_blanks(message)
+
+def make_all_mutual_blanks_watched(message, mutual_likes):
+    for blank in mutual_likes:
+        tg_id_blank = blank[0]
+        db_make_blank_watched(message.from_user.id, tg_id_blank)
+
+def show_liked_blanks(message, mutual_likes: list):
+    mutual_likes = get_list_of_mutual_likes(message.from_user.id)
+    if len(mutual_likes) > 0:
+        show_liked_blank(message, mutual_likes)
+    else:
+        bot.send_message(
+            message.chat.id,
+            "That is all, do you want to continue search new blanks?",
+            reply_markup=add_underline_keyboard(but_names=['💕', '👎'], row_width=2)
+        )
+        bot.register_next_step_handler(message, choose_continue)
+
+def show_liked_blank(message, mutual_likes):
+    tg_id_blank, photo, name, age, city, description = mutual_likes[0]
+    user_all_description = f"""**{name}, {age}, {city}**\n\n{description}"""
+    # message = bot.send_photo(
+    #     message.chat.id,
+    #     photo,
+    #     caption=user_all_description,
+    #     parse_mode='Markdown',
+    #     reply_markup=add_underline_keyboard(['💕', '👎', '⛔️', '⚙'], row_width=4)
+    # )
+
+    # send blank
+
+    bot.send_message(
+        message.chat.id,
+        user_all_description,
+        parse_mode='Markdown',
+        reply_markup=add_underline_keyboard(['NEXT'])
+    )
+    send_link_to_blank(message, tg_id_blank)
+    make_blank_watched(message, tg_id_blank)
+
+    bot.register_next_step_handler(message, lambda msg: show_liked_blanks(msg, mutual_likes))
+
+
+@check_message_type(content_type='text')
+def choose_continue(message):
+    if message.text not in ['💕', '👎']:
+        send_exception_mistake(message, "not an emoji", choose_continue)
+        return
+
+    if message.text == '💕':
+        bot.send_message(message.chat.id,"Okey, let's continue!")
+        search_blanks(message)
+        return
+    elif message.text == '👎':
+        # here I need to imagine something
+        bot.send_message(
+            message.chat.id,
+            "Okey, I hope I helped you with your aims))\n"
+            "Come back if you would like to find someone!",
+            reply_markup=add_underline_keyboard(['Start search again'])
+        )
+        return
 
 
 def show_blank(message, tg_id_blank, photo, name, age, city, description):
@@ -428,10 +515,10 @@ def show_blank(message, tg_id_blank, photo, name, age, city, description):
 
 def register_like(message, tg_id_blank):
     if not message.content_type == "text":
-        send_exception_type(message, "text", register_like)
+        send_exception_type(message, "text", lambda msg: register_like(msg, tg_id_blank))
         return
     if message.text not in ['💕', '👎', '⛔️', '⚙']:
-        send_exception_mistake(message, "not an emoji", register_like)
+        send_exception_mistake(message, "not an emoji", lambda msg: register_like(msg, tg_id_blank))
         return
 
     if message.text == '💕' or message.text == '👎':
@@ -455,105 +542,29 @@ def check_first_likes_of_my_blank(message):
     print(first_likes)
 
 
-def check_mutual_likes_of_my_blank(message):
-    mutual_likes = get_list_of_mutual_likes(message.from_user.id)
-
-    if len(mutual_likes) > 0:
-        bot.send_message(
-            message.chat.id,
-            f"Tou have liked {len(mutual_likes)} {'time' if len(mutual_likes) == 1 else 'times'}"
-            f"\nDo you want to see who has liked you?",
-            reply_markup=add_underline_keyboard(but_names=['yes', 'no'], row_width=2)
-        )
-        bot.register_next_step_handler(message, lambda msg: do_show_liked_blank(msg, mutual_likes))
-        return True
-    return False
 
 
-def do_show_liked_blank(message, mutual_likes):
-    if message.text == 'yes':
-        show_liked_blanks(message, mutual_likes)
-        # maybe here we need to place add watched field into db
-    elif message.text == 'no':
-        # add info to like db that user did want to see the blanks
-        make_all_mutual_blanks_watched(message, mutual_likes)
-
-    search_blanks(message)
 
 
-def make_all_mutual_blanks_watched(message, mutual_likes):
-    for blank in mutual_likes:
-        tg_id_blank = blank[0]
-        db_make_blank_watched(message.from_user.id, tg_id_blank)
+
 
 
 def make_blank_watched(message, tg_id_blank):
     db_make_blank_watched(message.from_user.id, tg_id_blank)
 
 
-def show_liked_blanks(message, mutual_likes: list):
-    mutual_likes = get_list_of_mutual_likes(message.from_user.id)
-    if len(mutual_likes) > 0:
-        blank = mutual_likes[0]
-        show_liked_blank(message, *blank)
-    else:
-        bot.send_message(
-            message.chat.id,
-            "That is all, do you want to continue search new blanks?",
-            reply_markup=add_underline_keyboard(but_names=['💕', '👎'], row_width=2)
-        )
-        bot.register_next_step_handler(message, choose_continue)
-
-def show_liked_blank(message, tg_id_blank, photo, name, age, city, description):
-    user_all_description = f"""**{name}, {age}, {city}**\n\n{description}"""
-    # message = bot.send_photo(
-    #     message.chat.id,
-    #     photo,
-    #     caption=user_all_description,
-    #     parse_mode='Markdown',
-    #     reply_markup=add_underline_keyboard(['💕', '👎', '⛔️', '⚙'], row_width=4)
-    # )
-
-    # send blank
-    bot.send_message(
-        message.chat.id,
-        user_all_description,
-        parse_mode='Markdown',
-        reply_markup=add_underline_keyboard(['NEXT'])
-    )
-    send_link_to_blank(message, tg_id_blank)
-
-    make_blank_watched(message, tg_id_blank)
-
-    bot.register_next_step_handler(message, show_liked_blanks)
 
 
-@check_message_type(content_type='text')
-def choose_continue(message):
-    if message.text not in ['💕', '👎']:
-        send_exception_mistake(message, "not an emoji", choose_continue)
-        return
 
-    if message.text == '💕':
-        bot.send_message(message.chat.id,"Okey, let's continue!")
-        search_blanks(message)
-        return
-    elif message.text == '👎':
-        # here I need to imagine something
-        bot.send_message(
-            message.chat.id,
-            "Okey, I hope I helped you with your aims))\n"
-            "Come back if you would like to find someone!",
-            reply_markup=add_underline_keyboard(['Start search again'])
-        )
-        return
+
+
+
 
 
 def send_link_to_blank(message, tg_id_blank):
     user_to_show = bot.get_chat(tg_id_blank)
     nickname = user_to_show.username
     first_name = user_to_show.first_name
-
     if nickname:
         bot.send_message(
             message.chat.id,
