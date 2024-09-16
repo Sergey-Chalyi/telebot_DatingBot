@@ -12,7 +12,7 @@ def get_message(mistake_message, tg_id = None):
 def add_underline_keyboard(but_names: list, row_width: int = 2):
     """Create UNDERLINE keyboard with one line of buttons"""
 
-    markup = telebot.types.ReplyKeyboardMarkup(row_width=row_width)
+    markup = telebot.types.ReplyKeyboardMarkup(row_width=row_width, resize_keyboard=True)
 
     buttons = []
     for but_name in but_names:

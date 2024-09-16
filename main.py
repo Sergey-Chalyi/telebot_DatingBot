@@ -255,8 +255,12 @@ def add_description(message):
     bot.register_next_step_handler(message, add_photo)
 
 
-@check_message_type(content_type='photo')
+# @check_message_type(content_type='photo')
 def add_photo(message):
+    if message.content_type != 'photo':
+        send_exception_type(message, 'photo', add_photo)
+        return
+
     file_id = message.photo[-1].file_id
     db_add_data_to_blank(message.from_user.id, "photo", file_id)
 
@@ -391,8 +395,8 @@ def search_blanks(message):
         if check_mutual_likes_of_my_blank(message):
             return
 
-        # if check_first_likes_of_my_blank(message):
-        #     return
+        if check_first_likes_of_my_blank(message):
+             return
 
         # show next blank
         show_blank(message, *blanks_preferances[0])
@@ -407,37 +411,37 @@ def check_mutual_likes_of_my_blank(message):
     if len(mutual_likes) > 0:
         bot.send_message(
             message.chat.id,
-            f"Tou have liked {len(mutual_likes)} {'time' if len(mutual_likes) == 1 else 'times'}"
+            f"You have liked mutually {len(mutual_likes)} {'time' if len(mutual_likes) == 1 else 'times'}"
             f"\nDo you want to see who has liked you?",
             reply_markup=add_underline_keyboard(but_names=['yes', 'no'], row_width=2)
         )
-        bot.register_next_step_handler(message, lambda msg: do_show_liked_blank(msg, mutual_likes))
+        bot.register_next_step_handler(message, lambda msg: do_show_liked_blanks(msg, mutual_likes))
         return True
     return False
 
 
-def do_show_liked_blank(message, mutual_likes):
+def do_show_liked_blanks(message, mutual_likes):
     if message.text == 'yes':
-        show_liked_blanks(message, mutual_likes)
+        show_mutually_liked_blanks(message, mutual_likes)
         # maybe here we need to place add watched field into db
     elif message.text == 'no':
         # add info to like db that user did want to see the blanks
-        make_all_mutual_blanks_watched(message, mutual_likes)
+        make_all_blanks_watched(message, mutual_likes)
         bot.send_message(
             message.chat.id,
             "Okey!"
         )
         search_blanks(message)
 
-def make_all_mutual_blanks_watched(message, mutual_likes):
+def make_all_blanks_watched(message, mutual_likes):
     for blank in mutual_likes:
         tg_id_blank = blank[0]
         db_make_blank_watched(message.from_user.id, tg_id_blank)
 
-def show_liked_blanks(message, mutual_likes: list):
+def show_mutually_liked_blanks(message, mutual_likes: list):
     mutual_likes = get_list_of_mutual_likes(message.from_user.id)
     if len(mutual_likes) > 0:
-        show_liked_blank(message, mutual_likes)
+        show_mutually_liked_blank(message, mutual_likes)
     else:
         bot.send_message(
             message.chat.id,
@@ -446,30 +450,30 @@ def show_liked_blanks(message, mutual_likes: list):
         )
         bot.register_next_step_handler(message, choose_continue)
 
-def show_liked_blank(message, mutual_likes):
+def show_mutually_liked_blank(message, mutual_likes):
     tg_id_blank, photo, name, age, city, description = mutual_likes[0]
     user_all_description = f"""**{name}, {age}, {city}**\n\n{description}"""
-    # message = bot.send_photo(
-    #     message.chat.id,
-    #     photo,
-    #     caption=user_all_description,
-    #     parse_mode='Markdown',
-    #     reply_markup=add_underline_keyboard(['💕', '👎', '⛔️', '⚙'], row_width=4)
-    # )
+
+    message = bot.send_photo(
+        message.chat.id,
+        photo,
+        caption=user_all_description,
+        parse_mode='Markdown',
+        reply_markup=add_underline_keyboard(['💕', '👎', '⛔️', '⚙'], row_width=4)
+    )
 
     # send blank
 
-    bot.send_message(
-        message.chat.id,
-        user_all_description,
-        parse_mode='Markdown',
-        reply_markup=add_underline_keyboard(['NEXT'])
-    )
+    # bot.send_message(
+    #     message.chat.id,
+    #     user_all_description,
+    #     parse_mode='Markdown',
+    #     reply_markup=add_underline_keyboard(['NEXT'])
+    # )
     send_link_to_blank(message, tg_id_blank)
     make_blank_watched(message, tg_id_blank)
 
-    bot.register_next_step_handler(message, lambda msg: show_liked_blanks(msg, mutual_likes))
-
+    bot.register_next_step_handler(message, lambda msg: show_mutually_liked_blanks(msg, mutual_likes))
 
 @check_message_type(content_type='text')
 def choose_continue(message):
@@ -490,6 +494,100 @@ def choose_continue(message):
             reply_markup=add_underline_keyboard(['Start search again'])
         )
         return
+
+
+
+def check_first_likes_of_my_blank(message):
+    first_likes = get_list_of_first_likes(message.from_user.id)
+    if len(first_likes) > 0:
+        bot.send_message(
+            message.chat.id,
+            f"You have liked {len(first_likes)} {'time' if len(first_likes) == 1 else 'times'}"
+            f"\nDo you want to see who has liked you?",
+            reply_markup=add_underline_keyboard(but_names=['yes', 'no'], row_width=2)
+        )
+        bot.register_next_step_handler(message, lambda msg: do_show_blanks(msg, first_likes))
+        return True
+    return False
+
+
+def do_show_blanks(message, first_likes):
+    if message.text == 'yes':
+        show_liked_blanks(message, first_likes)
+        # maybe here we need to place add watched field into db
+    elif message.text == 'no':
+        # add info to like db that user did want to see the blanks
+        make_all_blanks_watched(message, first_likes) # here I think I need to so something better
+        bot.send_message(
+            message.chat.id,
+            "Okey!"
+        )
+        search_blanks(message)
+
+
+def show_liked_blanks(message, first_likes):
+    first_likes = get_list_of_first_likes(message.from_user.id)
+    if len(first_likes) > 0:
+        show_liked_blank(message, first_likes)
+    else:
+        bot.send_message(
+            message.chat.id,
+            "That is all, do you want to continue search new blanks?",
+            reply_markup=add_underline_keyboard(but_names=['💕', '👎'], row_width=2)
+        )
+        bot.register_next_step_handler(message, choose_continue)
+
+
+def show_liked_blank(message, first_likes):
+    tg_id_blank, photo, name, age, city, description = first_likes[0]
+    user_all_description = f"""**{name}, {age}, {city}**\n\n{description}"""
+
+    message = bot.send_photo(
+        message.chat.id,
+        photo,
+        caption=user_all_description,
+        parse_mode='Markdown',
+        reply_markup=add_underline_keyboard(['💕', '👎', '⛔️', '⚙'], row_width=4)
+    )
+
+    # send blank
+
+    # bot.send_message(
+    #     message.chat.id,
+    #     user_all_description,
+    #     parse_mode='Markdown',
+    #     reply_markup=add_underline_keyboard(['💕', '👎', '⛔️', '⚙'], row_width=4)
+    # )
+    bot.register_next_step_handler(message, lambda msg: register_first_like(msg, first_likes))
+
+
+def register_first_like(message, first_likes):
+    tg_id_blank = first_likes[0][0]
+    if not message.content_type == "text":
+        send_exception_type(message, "text", lambda msg: register_like(msg, tg_id_blank))
+        return
+    if message.text not in ['💕', '👎', '⛔️', '⚙']:
+        send_exception_mistake(message, "not an emoji", lambda msg: register_like(msg, tg_id_blank))
+        return
+
+    if message.text == '💕' or message.text == '👎':
+        db_add_users_likes(
+            tg_id_user=message.from_user.id,
+            tg_id_blank=tg_id_blank,
+            like= 'yes' if message.text == '💕' else "no"
+        )
+        if message.text == '💕':
+            send_link_to_blank(message, tg_id_blank)
+    elif message.text == '⛔️':
+        pass
+    elif message.text == '⚙':
+        pass
+    else:
+        pass
+
+    make_blank_watched(message, tg_id_blank)
+    show_liked_blanks(message, first_likes)
+
 
 
 def show_blank(message, tg_id_blank, photo, name, age, city, description):
@@ -537,9 +635,7 @@ def register_like(message, tg_id_blank):
     search_blanks(message)
 
 
-def check_first_likes_of_my_blank(message):
-    first_likes = get_list_of_first_likes(message.from_user.id)
-    print(first_likes)
+
 
 
 
