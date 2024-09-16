@@ -43,8 +43,11 @@ def del_watched_blanks(blanks_preferances: list, tg_id_user: int):
 
 def get_list_of_mutual_likes(user_id):
     positive_user_likes = get_all_positive_user_likes(user_id)
-    print("positive_user_likes", positive_user_likes)
     positive_likes_myself = get_all_positive_likes_myself(user_id)
-    print("positive_likes_myself", positive_likes_myself)
     return list(set(positive_user_likes).intersection(set(positive_likes_myself)))
 
+
+def get_list_of_first_likes(user_id):
+    positive_user_likes = get_all_positive_user_likes(user_id)
+    positive_likes_myself = get_all_positive_likes_myself(user_id)
+    return list((set(positive_likes_myself)) - set(positive_user_likes))

@@ -3,7 +3,7 @@ from typing import final
 
 import telebot
 
-from functools import partial
+from functools import partial, wraps
 
 from db_req import *
 from constants import *
@@ -12,8 +12,31 @@ from help_func import *
 
 BOT_TOKEN = "7197713140:AAEHSyZLX3Q-CGU0GzK2r2Q7Z45rmSAHWd8"
 bot = telebot.TeleBot(BOT_TOKEN)
+bot.get_updates(offset=0)
 
 
+def check_message_type(content_type="text", but_names:list=None, row_width:int=None):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(message, *args, **kwargs):
+            if message.content_type != 'text':
+                if but_names is None and row_width is None:
+                    send_exception_type(message, content_type, func)
+                else:
+                    send_exception_type(
+                        message,
+                        content_type,
+                        func,
+                        but_names=but_names,
+                        row_width=row_width
+                    )
+                return
+            return func(message, *args, **kwargs)
+        return wrapper
+    return decorator
+
+
+# bot starts working here
 @bot.message_handler(commands=['start'])
 def bot_start(message):
     if not (db_is_user_exists(message.from_user.id)):
@@ -40,7 +63,6 @@ def add_username(message):
             reply_markup=add_underline_keyboard(but_names=["🇺🇦 Ukrainian", '🇬🇧 English', '🇷🇺 Russian'], row_width=3)
         )
         bot.register_next_step_handler(message, add_user_lang)
-
 
 def check_username_on_existing(message):
     if not message.content_type == "text":
@@ -79,22 +101,10 @@ def check_username_on_existing(message):
         )
         bot.register_next_step_handler(message, add_user_lang)
 
-
+@check_message_type(content_type='text')
 def add_user_lang(message):
-    if not message.content_type == "text":
-        send_exception_type(
-            message,
-            'text',
-            add_user_lang,
-            but_names=["🇺🇦 Ukrainian", '🇬🇧 English', '🇷🇺 Russian'],
-            row_width=3
-        )
-        return
-
-    if message.text == "🇺🇦 Ukrainian":
-        USER_LANG = 1
-    elif message.text == "🇬🇧 English":
-        USER_LANG = 0
+    if message.text == "🇺🇦 Ukrainian": USER_LANG = 1
+    elif message.text == "🇬🇧 English": USER_LANG = 0
     elif message.text == "🇷🇺 Russian":
         bot.send_message(message.chat.id,"🖕", parse_mode="html")
         send_exception_mistake(
@@ -129,11 +139,8 @@ def add_user_lang(message):
     return
 
 
+@check_message_type(content_type='text')
 def add_gender(message):
-    if not message.content_type == "text":
-        send_exception_type(message,'text', add_gender)
-        return
-
     if message.text != get_message(BUT_MALE, message.from_user.id) and message.text != get_message(BUT_FEMALE, message.from_user.id):
         send_exception_mistake(
             message,
@@ -157,11 +164,11 @@ def add_gender(message):
     bot.register_next_step_handler(message, add_name)
 
 
+@check_message_type(content_type='text')
 def add_name(message):
     if not message.content_type == "text":
         send_exception_type(message, 'text', add_name)
         return
-
     if not message.text.isalpha(): # or not  db_does_name_exists(name):
         send_exception_mistake(
             message,
@@ -178,11 +185,8 @@ def add_name(message):
     return
 
 
+@check_message_type(content_type='text')
 def add_age(message):
-    if not message.content_type == "text":
-        send_exception_type(message, 'text', add_age)
-        return
-
     try:
         age = int(message.text.strip())
         if age <= 10 or age >= 100:
@@ -208,11 +212,8 @@ def add_age(message):
     bot.register_next_step_handler(message, add_city)
 
 
+@check_message_type(content_type='text')
 def add_city(message):
-    if not message.content_type == "text":
-        send_exception_type(message, 'text', add_city)
-        return
-
     city = message.text.strip().capitalize()
     if not city.isalpha() or not db_does_city_exists(city):
         send_exception_mistake(
@@ -228,11 +229,8 @@ def add_city(message):
     bot.register_next_step_handler(message, add_description)
 
 
+@check_message_type(content_type='text')
 def add_description(message):
-    if not message.content_type == "text":
-        send_exception_type(message, 'text', add_description)
-        return
-
     description = message.text.strip()
     if len(description) < 20 or len(description) > 300:
         send_exception_mistake(
@@ -257,11 +255,8 @@ def add_description(message):
     bot.register_next_step_handler(message, add_photo)
 
 
+@check_message_type(content_type='photo')
 def add_photo(message):
-    if not message.content_type == "photo":
-        send_exception_type(message, 'photo', add_photo)
-        return
-
     file_id = message.photo[-1].file_id
     db_add_data_to_blank(message.from_user.id, "photo", file_id)
 
@@ -293,10 +288,8 @@ def send_user_blank(message, tg_id):
     bot.register_next_step_handler(message, add_gender_to_search)
 
 
+@check_message_type(content_type='text')
 def add_gender_to_search(message):
-    if not message.content_type == "text":
-        send_exception_type(message, 'text', add_gender_to_search)
-        return
     if message.text != get_message(BUT_MALE, message.from_user.id) and message.text != get_message(BUT_FEMALE, message.from_user.id):
         send_exception_mistake(
             message,
@@ -321,10 +314,8 @@ def add_gender_to_search(message):
     bot.register_next_step_handler(message, add_min_age_to_search)
 
 
+@check_message_type(content_type='text')
 def add_min_age_to_search(message):
-    if not message.content_type == "text":
-        send_exception_type(message, "text", add_min_age_to_search)
-        return
     try:
         age = int(message.text.strip())
         if age <= 10 or age >= 100:
@@ -346,10 +337,8 @@ def add_min_age_to_search(message):
     bot.register_next_step_handler(message, add_max_age_to_search)
 
 
+@check_message_type(content_type='text')
 def add_max_age_to_search(message):
-    if not message.content_type == "text":
-        send_exception_type(message, "text", add_max_age_to_search)
-        return
     try:
         age = int(message.text.strip())
         if age <= 10 or age >= 100:
@@ -379,10 +368,8 @@ def add_max_age_to_search(message):
 
 
 @bot.message_handler(commands=['search'])
+@check_message_type(content_type='text')
 def start_searching(message):
-    if not message.content_type == "text":
-        send_exception_type(message, "text", start_searching)
-        return
     if message.text != get_message(BUT_PUBLISH_AND_SEARCH, message.from_user.id):
         send_exception_mistake(
             message,
@@ -396,6 +383,7 @@ def start_searching(message):
     search_blanks(message)
 
 
+@check_message_type(content_type='text')
 def search_blanks(message):
     if not message.content_type == "text":
         send_exception_type(message, "text", search_blanks)
@@ -405,6 +393,8 @@ def search_blanks(message):
 
     if blanks_preferances.__len__() != 0:
         if check_mutual_likes_of_my_blank(message):
+            return
+        if check_first_likes_of_my_blank(message):
             return
 
         # show next blank
@@ -460,6 +450,11 @@ def register_like(message, tg_id_blank):
     search_blanks(message)
 
 
+def check_first_likes_of_my_blank(message):
+    first_likes = get_list_of_first_likes(message.from_user.id)
+    print(first_likes)
+
+
 def check_mutual_likes_of_my_blank(message):
     mutual_likes = get_list_of_mutual_likes(message.from_user.id)
 
@@ -477,12 +472,13 @@ def check_mutual_likes_of_my_blank(message):
 
 def do_show_liked_blank(message, mutual_likes):
     if message.text == 'yes':
-        show_liked_blank(message, mutual_likes)
+        show_liked_blanks(message, mutual_likes)
         # maybe here we need to place add watched field into db
     elif message.text == 'no':
         # add info to like db that user did want to see the blanks
         make_all_mutual_blanks_watched(message, mutual_likes)
-        search_blanks(message)
+
+    search_blanks(message)
 
 
 def make_all_mutual_blanks_watched(message, mutual_likes):
@@ -495,41 +491,47 @@ def make_blank_watched(message, tg_id_blank):
     db_make_blank_watched(message.from_user.id, tg_id_blank)
 
 
-def show_liked_blank(message, mutual_likes: list):
-    for blank in mutual_likes:
-        tg_id_blank, photo, name, age, city, description = blank
-        user_all_description = f"""**{name}, {age}, {city}**\n\n{description}"""
-
-        # message = bot.send_photo(
-        #     message.chat.id,
-        #     photo,
-        #     caption=user_all_description,
-        #     parse_mode='Markdown',
-        #     reply_markup=add_underline_keyboard(['💕', '👎', '⛔️', '⚙'], row_width=4)
-        # )
-
-        # send blank
+def show_liked_blanks(message, mutual_likes: list):
+    mutual_likes = get_list_of_mutual_likes(message.from_user.id)
+    if len(mutual_likes) > 0:
+        blank = mutual_likes[0]
+        show_liked_blank(message, *blank)
+    else:
         bot.send_message(
             message.chat.id,
-            user_all_description,
-            parse_mode='Markdown',
+            "That is all, do you want to continue search new blanks?",
+            reply_markup=add_underline_keyboard(but_names=['💕', '👎'], row_width=2)
         )
-        send_link_to_blank(message, tg_id_blank)
-        make_blank_watched(message, tg_id_blank)
+        bot.register_next_step_handler(message, choose_continue)
 
+def show_liked_blank(message, tg_id_blank, photo, name, age, city, description):
+    user_all_description = f"""**{name}, {age}, {city}**\n\n{description}"""
+    # message = bot.send_photo(
+    #     message.chat.id,
+    #     photo,
+    #     caption=user_all_description,
+    #     parse_mode='Markdown',
+    #     reply_markup=add_underline_keyboard(['💕', '👎', '⛔️', '⚙'], row_width=4)
+    # )
+
+    # send blank
     bot.send_message(
         message.chat.id,
-        "That is all, do you want to continue search new blanks?",
-        reply_markup=add_underline_keyboard(but_names=['💕', '👎'], row_width=2)
+        user_all_description,
+        parse_mode='Markdown',
+        reply_markup=add_underline_keyboard(['NEXT'])
     )
-    bot.register_next_step_handler(message, choose_continue)
+    send_link_to_blank(message, tg_id_blank)
 
+    make_blank_watched(message, tg_id_blank)
+
+    bot.register_next_step_handler(message, show_liked_blanks)
+
+
+@check_message_type(content_type='text')
 def choose_continue(message):
-    if not message.content_type == "text":
-        send_exception_type(message, "text", register_like)
-        return
     if message.text not in ['💕', '👎']:
-        send_exception_mistake(message, "not an emoji", register_like)
+        send_exception_mistake(message, "not an emoji", choose_continue)
         return
 
     if message.text == '💕':
@@ -545,6 +547,7 @@ def choose_continue(message):
             reply_markup=add_underline_keyboard(['Start search again'])
         )
         return
+
 
 def send_link_to_blank(message, tg_id_blank):
     user_to_show = bot.get_chat(tg_id_blank)
