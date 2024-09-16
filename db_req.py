@@ -42,34 +42,42 @@ req_add_users_likes = """INSERT INTO LIKES (tg_id_user, tg_id_blank, like) VALUE
 
 # ------------------------
 req_get_all_positive_user_likes = """
-    SELECT tg_id_blank
-    FROM LIKES
-    WHERE tg_id_user = (?) AND
-          like = 'yes'
+    SELECT tg_id, photo, name, age, city, description 
+    FROM USERS_GENERAL_INFO 
+    WHERE tg_id != (?) AND 
+          tg_id IN (SELECT tg_id_blank 
+                    FROM LIKES
+                    WHERE tg_id_user = (?) AND
+                    like = 'yes' AND
+                    watched IS NULL)
 """
 
 def get_all_positive_user_likes(user_id):
     with sqlite3.connect(DB_NAME) as DB:
-        cursor = DB.execute(req_get_all_positive_user_likes, (user_id,))
+        cursor = DB.execute(req_get_all_positive_user_likes, (user_id, user_id))
         all_positive_user_likes = []
         for el in cursor:
-            all_positive_user_likes.append(el[0])
+            all_positive_user_likes.append(el)
         return all_positive_user_likes
 
 
 req_get_all_positive_likes_myself = """
-    SELECT tg_id_user 
-    FROM LIKES
-    WHERE tg_id_blank = (?) AND
-          like = 'yes' 
+   SELECT tg_id, photo, name, age, city, description 
+    FROM USERS_GENERAL_INFO 
+    WHERE tg_id != (?) AND 
+          tg_id IN (SELECT tg_id_user 
+                    FROM LIKES
+                    WHERE tg_id_blank = (?) AND
+                          like = 'yes' AND
+                          watched IS NULL)
 """
 
 def get_all_positive_likes_myself(user_id):
     with sqlite3.connect(DB_NAME) as DB:
-        cursor = DB.execute(req_get_all_positive_likes_myself, (1939731383,))
+        cursor = DB.execute(req_get_all_positive_likes_myself, (user_id, user_id))
         all_positive_likes_myself = []
         for el in cursor:
-            all_positive_likes_myself.append(el[0])
+            all_positive_likes_myself.append(el)
         return all_positive_likes_myself
 
 

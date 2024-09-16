@@ -20,14 +20,64 @@ def bot_start(message):
         db_add_user(message.from_user.id, message)
 
     bot.send_message(message.chat.id, get_message(MESS_WELCOME), parse_mode='html')
+    add_username(message)
 
-    bot.send_message(
-        message.chat.id,
-        get_message(MESS_ENTER_LANG),
-        parse_mode='html',
-        reply_markup=add_underline_keyboard(but_names=["🇺🇦 Ukrainian", '🇬🇧 English', '🇷🇺 Russian'], row_width=3)
-    )
-    bot.register_next_step_handler(message, add_user_lang)
+
+def add_username(message):
+    if bot.get_chat(message.from_user.id).username is None:
+        bot.send_message(
+            message.chat.id,
+            "You haven't got username\n"
+            "Add username to your profile to bot works correctly and then press on the button",
+            reply_markup=add_underline_keyboard(['I have just added username!'], row_width=1)
+        )
+        bot.register_next_step_handler(message, check_username_on_existing)
+    else:
+        bot.send_message(
+            message.chat.id,
+            get_message(MESS_ENTER_LANG),
+            parse_mode='html',
+            reply_markup=add_underline_keyboard(but_names=["🇺🇦 Ukrainian", '🇬🇧 English', '🇷🇺 Russian'], row_width=3)
+        )
+        bot.register_next_step_handler(message, add_user_lang)
+
+
+def check_username_on_existing(message):
+    if not message.content_type == "text":
+        send_exception_type(
+            message,
+            'text',
+            check_username_on_existing,
+            but_names=["I have just added username!"],
+            row_width=1
+        )
+        return
+    if message.text != "I have just added username!":
+        bot.send_message(
+            message.chat.id,
+            "You didn't pressed on the button!",
+            parse_mode="html",
+            reply_markup=add_underline_keyboard(["I have just added username!"])
+        )
+        bot.register_next_step_handler(message, check_username_on_existing)
+        return
+
+    if bot.get_chat(message.from_user.id).username is None:
+        bot.send_message(
+            message.chat.id,
+            "You haven't added the username\n"
+            "Add username to your profile to bot works correctly and then press on the button",
+            reply_markup=add_underline_keyboard(['I have just added username!'], row_width=1)
+        )
+        bot.register_next_step_handler(message, check_username_on_existing)
+    else:
+        bot.send_message(
+            message.chat.id,
+            get_message(MESS_ENTER_LANG),
+            parse_mode='html',
+            reply_markup=add_underline_keyboard(but_names=["🇺🇦 Ukrainian", '🇬🇧 English', '🇷🇺 Russian'], row_width=3)
+        )
+        bot.register_next_step_handler(message, add_user_lang)
 
 
 def add_user_lang(message):
@@ -355,7 +405,7 @@ def search_blanks(message):
 
     if blanks_preferances.__len__() != 0:
         if check_mutual_likes_of_my_blank(message):
-            return  # Прерываем выполнение, если был зарегистрирован обработчик шага
+            return
 
         # show next blank
         show_blank(message, *blanks_preferances[0])
@@ -413,6 +463,7 @@ def register_like(message, tg_id_blank):
 def check_mutual_likes_of_my_blank(message):
     mutual_likes = get_list_of_mutual_likes(message.from_user.id)
     print(mutual_likes)
+
     if len(mutual_likes) > 0:
         bot.send_message(
             message.chat.id,
@@ -420,22 +471,65 @@ def check_mutual_likes_of_my_blank(message):
             f"\nDo you want to see who has liked you?",
             reply_markup=add_underline_keyboard(but_names=['yes', 'no'], row_width=2)
         )
-        bot.register_next_step_handler(message, do_show_liked_blank)
+        bot.register_next_step_handler(message, lambda msg: do_show_liked_blank(msg, mutual_likes))
         return True
     return False
 
 
-def do_show_liked_blank(message):
+def do_show_liked_blank(message, mutual_likes):
     if message.text == 'yes':
-        show_liked_blank(message)
+        show_liked_blank(message, mutual_likes)
         # maybe here we need to place add watched field into db
     elif message.text == 'no':
+        # add info to like db that user did want to see the blanks
         check_mutual_likes_of_my_blank(message)
 
 
 
-def show_liked_blank(message):
-    print("send blank")
+def show_liked_blank(message, mutual_likes: list):
+    # get photo on the screen
+    tg_id_blank, photo, name, age, city, description = mutual_likes[0]
+    user_all_description = f"""**{name}, {age}, {city}**\n\n{description}"""
+
+    # message = bot.send_photo(
+    #     message.chat.id,
+    #     photo,
+    #     caption=user_all_description,
+    #     parse_mode='Markdown',
+    #     reply_markup=add_underline_keyboard(['💕', '👎', '⛔️', '⚙'], row_width=4)
+    # )
+
+    # send blank
+    bot.send_message(
+        message.chat.id,
+        user_all_description,
+        parse_mode='Markdown',
+        reply_markup=add_underline_keyboard(['💕', '👎', '⛔️', '⚙'], row_width=4)
+    )
+
+    bot.register_next_step_handler(message, lambda msg: get_link_to_blank(msg, tg_id_blank))
+
+
+def get_link_to_blank(message, tg_id_blank):
+    user_to_show = bot.get_chat(tg_id_blank)
+    nickname = user_to_show.username
+    first_name = user_to_show.first_name
+    if nickname:
+        bot.send_message(
+            message.chat.id,
+            f"[{f"@{nickname}"}]({f"https://t.me/{nickname}"})",
+            parse_mode='Markdown'
+        )
+    else:
+        bot.send_message(
+            message.chat.id,
+            f"[{first_name}]({f"https://t.me/user?id={tg_id_blank}"})",
+            parse_mode='Markdown'
+        )
+    # bot.send_message()
+
+
+    input("ENTER")
 
 
 def send_exception_type(message, type, method, but_names:list=None, row_width:int=None):
