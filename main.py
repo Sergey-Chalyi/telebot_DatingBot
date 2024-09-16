@@ -462,7 +462,6 @@ def register_like(message, tg_id_blank):
 
 def check_mutual_likes_of_my_blank(message):
     mutual_likes = get_list_of_mutual_likes(message.from_user.id)
-    print(mutual_likes)
 
     if len(mutual_likes) > 0:
         bot.send_message(
@@ -482,8 +481,14 @@ def do_show_liked_blank(message, mutual_likes):
         # maybe here we need to place add watched field into db
     elif message.text == 'no':
         # add info to like db that user did want to see the blanks
-        check_mutual_likes_of_my_blank(message)
+        make_all_mutual_blanks_watched(message, mutual_likes)
 
+
+def make_all_mutual_blanks_watched(message, mutual_likes):
+    for blank in mutual_likes:
+        tg_id_blank = blank[0]
+        db_make_blank_watched(message.from_user.id, tg_id_blank)
+    search_blanks(message)
 
 
 def show_liked_blank(message, mutual_likes: list):

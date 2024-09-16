@@ -81,7 +81,22 @@ def get_all_positive_likes_myself(user_id):
         return all_positive_likes_myself
 
 
+req_make_blank_watched_for_user = """
+   UPDATE LIKES
+   SET watched = 'yes'
+   WHERE tg_id_user = (?) AND tg_id_blank = (?)
+"""
+req_make_blank_watched_for_blank = """
+   UPDATE LIKES
+   SET watched = 'yes'
+   WHERE tg_id_user = (?) AND tg_id_blank = (?)
+"""
 
+def db_make_blank_watched(tg_id_user, tg_id_blank):
+    with sqlite3.connect(DB_NAME) as DB:
+        DB.execute(req_make_blank_watched_for_user, (tg_id_user, tg_id_blank))
+        DB.execute(req_make_blank_watched_for_user, (tg_id_blank, tg_id_user))
+        DB.commit()
 # ------------------------
 
 def db_is_user_exists(user_tg_id):
